@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/">
+        <file>shaders/Dfs.shader</file>
+        <file>shaders/Dvs.shader</file>
+    </qresource>
+</RCC>
