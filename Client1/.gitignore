@@ -1,0 +1,6 @@
+*.Debug
+*.Release
+*.stash
+*.bat
+Makefile
+/debug/*
