@@ -6,5 +6,7 @@
         <file>shaders/coordvs.vert</file>
         <file>shaders/textfs.frag</file>
         <file>shaders/textvs.vert</file>
+        <file>shaders/backfs.frag</file>
+        <file>shaders/backvs.vert</file>
     </qresource>
 </RCC>

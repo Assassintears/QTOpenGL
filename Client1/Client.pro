@@ -58,4 +58,6 @@ else:win32-g++: PRE_TARGETDEPS += $$PWD/./libfreetype.a
 INCLUDEPATH += $$PWD/./freetype
 DEPENDPATH += $$PWD/./freetype
 
+CONFIG += debug
+
 DISTFILES +=

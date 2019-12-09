@@ -7,8 +7,9 @@
 #include <QOpenGLFunctions_4_5_Core>
 #include <QKeyEvent>
 #include <QMouseEvent>
-#include <ft2build.h>
-#include FT_FREETYPE_H
+
+//#include <ft2build.h>
+//#include FT_FREETYPE_H
 
 
 QT_FORWARD_DECLARE_CLASS(QOpenGLShaderProgram)
@@ -22,10 +23,10 @@ typedef enum RenderMode
 };
 
 struct Character {
-    GLuint     TextureID;  // 字形纹理的ID
+    GLuint TextureID;  // 字形纹理的ID
     QSize Size;       // 字形大小
     QSize Bearing;    // 从基准线到字形左部/顶部的偏移值
-    GLuint     Advance;    // 原点距下一个字形原点的距离
+    GLuint Advance;    // 原点距下一个字形原点的距离
 };
 
 
@@ -107,20 +108,27 @@ private:
     QVector<GLuint> index;
     bool m_ok = false;
 
-    //!纹理字符相关变量及其函数
-    QOpenGLBuffer charvbo;
-    QOpenGLVertexArrayObject charvao;
-    QOpenGLShaderProgram *charPro;//!字符纹理着色器
-    FT_Library ft;
-    FT_Face face;
-    QMap<GLchar, Character> m_characters;
-    bool loadFonts();
-    void RenderText(
-            std::string text,        //!待渲染的字符串
-            GLfloat x, GLfloat y,    //!字符串起始位置，单位：像素
-            GLfloat scale,           //!缩放比例
-            QVector3D color          //!字符颜色
-            );
+    QOpenGLShaderProgram *pointPro;//!顶点着色器
+    QOpenGLBuffer pointvbo;
+    QOpenGLVertexArrayObject pointvao;
+
+    int nRange;
+
+
+//    //!纹理字符相关变量及其函数
+//    QOpenGLBuffer charvbo;
+//    QOpenGLVertexArrayObject charvao;
+//    QOpenGLShaderProgram *charPro;//!字符纹理着色器
+//    FT_Library ft;
+//    FT_Face face;
+//    QMap<GLchar, Character> m_characters;
+//    bool loadFonts();
+//    void RenderText(
+//            std::string text,        //!待渲染的字符串
+//            GLfloat x, GLfloat y,    //!字符串起始位置，单位：像素
+//            GLfloat scale,           //!缩放比例
+//            QVector3D color          //!字符颜色
+//            );
 };
 
 #endif // OPENGLWIDGET_H
