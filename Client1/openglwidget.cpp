@@ -21,20 +21,17 @@
 GLWidget::GLWidget(QWidget *parent)
     : QOpenGLWidget(parent),
       QOpenGLFunctions_4_5_Core(),
-      m_vbo(QOpenGLBuffer::VertexBuffer),
-      pointvbo(QOpenGLBuffer::VertexBuffer)
+      m_vbo(QOpenGLBuffer::VertexBuffer)
 {
     setFocusPolicy(Qt::StrongFocus);
     m_camera.setToIdentity();
-    m_camera.lookAt(QVector3D(10.0f, 0.0f, 10.0f), QVector3D(0, 0, 0), QVector3D(0, 1, 0));
+    m_camera.lookAt(QVector3D(10.0f, 20.0f, 10.0f), QVector3D(0, 0, 0), QVector3D(0, 1, 0));
     lightColor = QVector3D(1.0f, 1.0f, 1.0f);
     objectColor = QVector3D(1.0f, 0.5f, 0.31f);
     count = 0;
     mode = PointCloud;//!默认点云渲染
 
     nRange = 200;
-
-//    loadFonts();//!加载字符纹理
 }
 
 GLWidget::~GLWidget()
@@ -56,6 +53,7 @@ QSize GLWidget::sizeHint() const
 
 void GLWidget::initShaders()
 {
+    //!模型着色器
     m_program = new QOpenGLShaderProgram;
     m_program->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/Dvs.shader");
     m_program->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/Dfs.shader");
@@ -65,7 +63,7 @@ void GLWidget::initShaders()
         close();
      m_program->release();
 
-
+    //!坐标轴着色器
     coordPro = new QOpenGLShaderProgram;
     coordPro->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/coordvs.vert");
     coordPro->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/coordfs.frag");
@@ -76,15 +74,16 @@ void GLWidget::initShaders()
         close();
     coordPro->release();
 
-    pointPro = new QOpenGLShaderProgram;
-    pointPro->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/backvs.vert");
-    pointPro->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/backfs.frag");
-    if (!pointPro->link())
+    //!纹理着色器
+    textPro = new QOpenGLShaderProgram;
+    textPro->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/textvs.vert");
+    textPro->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/textfs.frag");
+    if (!textPro->link())
         close();
-    if (!pointPro->bind())
-        close();
-     pointPro->release();
 
+    if (!textPro->bind())
+        close();
+    textPro->release();
 }
 
 void GLWidget::updateData(QVector<QVector3D> local, QVector<unsigned int> ii)
@@ -139,20 +138,28 @@ void GLWidget::initializeGL()
     glGenBuffers(1, &uboExampleBlock);
     glBindBuffer(GL_UNIFORM_BUFFER, uboExampleBlock);
     glBufferData(GL_UNIFORM_BUFFER, 2 * 16 * sizeof(float), nullptr, GL_STATIC_DRAW);//分配uniform块空间
+    //!ubo缓冲区绑定点
     uboBindPoint = 1;
     glBindBufferRange(GL_UNIFORM_BUFFER, uboBindPoint, uboExampleBlock, 0, 2 * 16 * sizeof(float));//!缓冲区绑定点
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
     //!着色器绑定uniform块
+    //! 模型着色器
     m_program->bind();
     unsigned int mprogramuniformID = glGetUniformBlockIndex(m_program->programId(), "Matrices");
     glUniformBlockBinding(m_program->programId(), mprogramuniformID, uboBindPoint);
     m_program->release();
-
+    //!坐标轴着色器
     coordPro->bind();
     unsigned int coordProuniformID = glGetUniformBlockIndex(coordPro->programId(), "Matrices");
     glUniformBlockBinding(coordPro->programId(), coordProuniformID, uboBindPoint);
     coordPro->release();
+    //!纹理着色器
+    textPro->bind();
+    glUniformBlockBinding(textPro->programId(),
+                          glGetUniformBlockIndex(textPro->programId(), "Matrices"),
+                          uboBindPoint);
+
 
     m_vao.create();
     m_vbo.create();
@@ -167,12 +174,17 @@ void GLWidget::initializeGL()
     VBO.allocate(out.data(), out.size() * 3 * sizeof(float));//!必须先绑定才能赋值
     VAO.create();
 
-
-    pointvbo.create();
-    pointvao.create();
-    pointvbo.bind();
-    pointvbo.setUsagePattern(QOpenGLBuffer::DynamicDraw);
-    pointvbo.allocate(3 * sizeof(float));
+    //!纹理数据
+//    textvbo.create();
+//    textvao.create();
+//    textvbo.bind();
+//    textvbo.setUsagePattern(QOpenGLBuffer::DynamicDraw);
+//    textvbo.allocate(6 * 5 * sizeof(float));
+    glGenBuffers(1, &textvbo);
+    glBindBuffer(GL_ARRAY_BUFFER, textvbo);
+    glBufferData(GL_ARRAY_BUFFER, 5 * 6 * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
+    glGenVertexArrays(1, &textvao);
+    qDebug() << "allo " << glGetError();
 }
 
 
@@ -181,6 +193,7 @@ void GLWidget::paintGL()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_LINE_SMOOTH);
 
     //!画坐标轴
     coordPro->bind();
@@ -192,44 +205,49 @@ void GLWidget::paintGL()
     glEnableVertexAttribArray(0);
     glLineWidth(5.0f);
     glDrawArrays(GL_LINES, 0, indexSize);
-//    glPointSize(2.0f);
-//    glDrawArrays(GL_POINTS, 0, indexSize);
     VBO.release();
     VAO.release();
     coordPro->release();
 
-    //!画字符
-//    QVector4D tmp = m_camera * m_world * QVector4D(50.0f, 2.0f, 0.0f, 1.0f);
-    QVector4D ndc = m_proj * m_camera * m_world * QVector4D(50.0f, 0.0f, 0.0f, 1.0f);
-    //!获取窗口大小
-    float x = (this->width() * 0.5f - 0.5f) * (ndc[0] + ndc[3]);
-    float y = (this->height() * 0.5f - 0.5f) * (ndc[3] - ndc[1]);
-    QPainter painter;
-    QFont font = painter.font();
-    painter.setFont(font);
-    font.setPixelSize(48);
-    painter.begin(this);
-    QPen pen = painter.pen();
-    pen.setColor(Qt::red);
-    painter.setPen(pen);
+    //!画刻度值
+    mTexture = genTexture(20, 20, "50", 48, QColor(1.0f, 0.0f, 0.0f));
+    float textvert[] =
+    {
+        50.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+        55.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+        50.0f, 5.0f, 0.0f, 0.0f, 1.0f,
 
-    painter.drawText(x, y,"50");
-    painter.end();
-//    //!已知像素，计算ndc坐标
-//    float ndcx = x * 2.0f / (this->width() - 1) -1;
-//    float ndcy = -y * 2.0f / (this->height() - 1) + 1;
-//    float ndcvert[] = { ndcx, ndcy, 0.0f };
-//    pointPro->bind();
-//    pointvbo.bind();
-//    pointvbo.write(0, ndcvert, sizeof(ndcvert));
-//    pointvao.bind();
-//    glEnableVertexAttribArray(0);
-//    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(ndcvert), nullptr);
-//    glPointSize(5.0f);
-//    glDrawArrays(GL_POINTS, 0, 1);
-//    pointPro->release();
-//    pointvao.release();
-//    pointvbo.release();
+        50.0f, 5.0f, 0.0f, 0.0f, 1.0f,
+        55.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+        55.0f, 5.0f, 0.0f, 1.0f, 1.0f
+    };
+    glBindBuffer(GL_ARRAY_BUFFER, textvbo);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(textvert), textvert);
+    glBindVertexArray(textvao);
+//    textvbo.bind();
+//    textvbo.allocate(textvert, sizeof(textvert));
+    textPro->bind();
+    glUniformMatrix4fv(textPro->uniformLocation("model"), 1, GL_FALSE, m_world.data());
+    qDebug() << "write:" << glGetError();
+//    textvao.bind();
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), nullptr);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float),
+                          (void*)(3 * sizeof(float)));
+//    glActiveTexture(GL_TEXTURE0);
+//    mTexture->bind();
+    glLineWidth(5.0f);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    qDebug() << glGetError();
+    mTexture->release();
+//    textvbo.release();
+//    textvao.release();
+//    textPro->release();
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+    delete mTexture;
+    mTexture = nullptr;
 
     //!画煤场
     m_program->bind();
@@ -260,7 +278,6 @@ void GLWidget::paintGL()
     m_vbo.release();
     m_vao.release();
     m_program->release();
-
 }
 
 void GLWidget::resizeGL(int w, int h)
@@ -292,7 +309,9 @@ void GLWidget::resizeGL(int w, int h)
     glBufferSubData(GL_UNIFORM_BUFFER, 0, 16 * sizeof(float), m_proj.data());
     glBufferSubData(GL_UNIFORM_BUFFER, 16 * sizeof(float), 16 * sizeof(float), m_camera.data());
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
-    glViewport(0, 0, w, h);
+    int side = qMin(w, h);
+    glViewport((w - side) / 2, (h - side) / 2, side, side);
+
 }
 
 void GLWidget::paintOpenGL()
@@ -411,97 +430,29 @@ bool GLWidget::genCoordData(const QVector3D max, const QVector3D step,
     out.push_back(QVector3D(0.0f, 0.0f, 1.0f * z));
 }
 
-//bool GLWidget::loadFonts()
-// {
-//     //!加载字体
-//     if (FT_Init_FreeType(&ft))
-//         return false;
-//     if (FT_New_Face(ft, "arial.ttf", 0, &face))
-//         return false;
-//     FT_Set_Pixel_Sizes(face, 0, 48);
-//     glPixelStorei(GL_UNPACK_ALIGNMENT, 1); //禁用字节对齐限制
-//     for (GLubyte c = 0; c < 128; c++)
-//     {
-//         // 加载字符的字形
-//         if (FT_Load_Char(face, c, FT_LOAD_RENDER))
-//         {
-//             continue;
-//         }
-//         // 生成纹理
-//         GLuint texture;
-//         glGenTextures(1, &texture);
-//         glBindTexture(GL_TEXTURE_2D, texture);
-//         glTexImage2D(
-//             GL_TEXTURE_2D,
-//             0,
-//             GL_RED,
-//             face->glyph->bitmap.width,
-//             face->glyph->bitmap.rows,
-//             0,
-//             GL_RED,
-//             GL_UNSIGNED_BYTE,
-//             face->glyph->bitmap.buffer
-//         );
-//         // 设置纹理选项
-//         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-//         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-//         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-//         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-//         // 储存字符供之后使用
-//         Character character = {
-//             texture,
-//             {static_cast<int>(face->glyph->bitmap.width), static_cast<int>(face->glyph->bitmap.rows)},
-//             {static_cast<int>(face->glyph->bitmap_left), static_cast<int>(face->glyph->bitmap_top)},
-//             static_cast<GLuint>(face->glyph->advance.x)
-//         };
-//         m_characters.insert(c, character);
-//     }
-// }
+QOpenGLTexture* GLWidget::genTexture(int width, int height, const QString &text, int textPixelSize, const QColor &textColor)
+{
+    QOpenGLTexture *texture = new QOpenGLTexture(QOpenGLTexture::Target2D);
 
-//void GLWidget::RenderText(std::string text, GLfloat x, GLfloat y,
-//                            GLfloat scale, QVector3D color)
-//{
-//        charPro->bind();
-//        glUniform3f(charPro->uniformLocation("textColor"), color.x(), color.y(), color.z());
-//        glActiveTexture(GL_TEXTURE0);
-//        // 遍历文本中所有的字符
-//        std::string::const_iterator c;
-//        for (c = text.begin(); c != text.end(); c++)
-//        {
-//            Character ch = m_characters[*c];
+    QImage img(width, height, QImage::Format_ARGB32_Premultiplied);
+    img.fill(QColor(0, 0, 0, 0));//!背景透明
 
-//            GLfloat xpos = x + ch.Bearing.width() * scale;
-//            GLfloat ypos = y - (ch.Size.height() - ch.Bearing.height()) * scale;
-
-//            GLfloat w = ch.Size.width() * scale;
-//            GLfloat h = ch.Size.height() * scale;
-//            // 对每个字符更新VBO
-//            GLfloat vertices[6][4] = {
-//                { xpos,     ypos + h,   0.0, 0.0 },
-//                { xpos,     ypos,       0.0, 1.0 },
-//                { xpos + w, ypos,       1.0, 1.0 },
-
-//                { xpos,     ypos + h,   0.0, 0.0 },
-//                { xpos + w, ypos,       1.0, 1.0 },
-//                { xpos + w, ypos + h,   1.0, 0.0 }
-//            };
-//            // 在四边形上绘制字形纹理
-//            glBindTexture(GL_TEXTURE_2D, ch.TextureID);
-//            // 更新VBO内存的内容
-//            charvbo.bind();
-//            charvbo.allocate(sizeof(vertices));
-//            charvbo.write(0, vertices, sizeof(vertices));
-
-//            charvao.bind();
-//            glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), nullptr);
-//            glEnableVertexAttribArray(0);
-//            // 绘制四边形
-//            glDrawArrays(GL_TRIANGLES, 0, 6);
-//            // 更新位置到下一个字形的原点，注意单位是1/64像素
-//            x += (ch.Advance >> 6) * scale; // 位偏移6个单位来获取单位为像素的值 (2^6 = 64)
-//            charvbo.release();
-//            charvao.release();
-//        }
-//        glBindVertexArray(0);
-//        glBindTexture(GL_TEXTURE_2D, 0);
-//}
+    QPainter painter;
+    QFont font;
+    painter.begin(&img);
+    font.setPixelSize(textPixelSize);
+    painter.setFont(font);
+    QPen pen;
+    pen.setColor(textColor);
+    painter.setPen(pen);
+    QTextOption option(Qt::AlignLeft | Qt::AlignTop);
+    option.setWrapMode(QTextOption::WordWrap);
+    QRectF rect(0, 0, width, height);
+    painter.drawText(rect, text, option);
+    painter.end();
+    texture->setData(img);
+    texture->setMinificationFilter(QOpenGLTexture::Linear);
+    texture->setMagnificationFilter(QOpenGLTexture::Linear);
+    texture->setWrapMode(QOpenGLTexture::Repeat);
+    return texture;
+}

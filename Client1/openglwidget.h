@@ -7,6 +7,8 @@
 #include <QOpenGLFunctions_4_5_Core>
 #include <QKeyEvent>
 #include <QMouseEvent>
+#include <QOpenGLTexture>
+#include <QPainter>
 
 //#include <ft2build.h>
 //#include FT_FREETYPE_H
@@ -108,27 +110,22 @@ private:
     QVector<GLuint> index;
     bool m_ok = false;
 
-    QOpenGLShaderProgram *pointPro;//!顶点着色器
-    QOpenGLBuffer pointvbo;
-    QOpenGLVertexArrayObject pointvao;
-
     int nRange;
 
+    //!字符纹理
+    QOpenGLTexture *mTexture;
+    struct Vertex
+    {
+        QVector3D positon;
+        QVector2D tex;
+    };
+//    QOpenGLBuffer textvbo;
+//    QOpenGLVertexArrayObject textvao;
+    QOpenGLShaderProgram *textPro;//!纹理着色器
+    GLuint textvbo, textvao;
 
-//    //!纹理字符相关变量及其函数
-//    QOpenGLBuffer charvbo;
-//    QOpenGLVertexArrayObject charvao;
-//    QOpenGLShaderProgram *charPro;//!字符纹理着色器
-//    FT_Library ft;
-//    FT_Face face;
-//    QMap<GLchar, Character> m_characters;
-//    bool loadFonts();
-//    void RenderText(
-//            std::string text,        //!待渲染的字符串
-//            GLfloat x, GLfloat y,    //!字符串起始位置，单位：像素
-//            GLfloat scale,           //!缩放比例
-//            QVector3D color          //!字符颜色
-//            );
+    QOpenGLTexture* genTexture(int width, int height, const QString &text, int textPixelSize, const QColor &textColor);
+
 };
 
 #endif // OPENGLWIDGET_H
