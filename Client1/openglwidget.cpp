@@ -23,6 +23,13 @@ GLWidget::GLWidget(QWidget *parent)
       QOpenGLFunctions_4_5_Core(),
       m_vbo(QOpenGLBuffer::VertexBuffer)
 {
+    QSurfaceFormat format;
+    format.setDepthBufferSize(24);
+    format.setStencilBufferSize(8);
+    format.setVersion(4, 5);
+    format.setProfile(QSurfaceFormat::CoreProfile);
+    QSurfaceFormat::setDefaultFormat(format);
+
     setFocusPolicy(Qt::StrongFocus);
     m_camera.setToIdentity();
     m_camera.lookAt(QVector3D(10.0f, 20.0f, 10.0f), QVector3D(0, 0, 0), QVector3D(0, 1, 0));
@@ -31,7 +38,7 @@ GLWidget::GLWidget(QWidget *parent)
     count = 0;
     mode = PointCloud;//!默认点云渲染
 
-    nRange = 200;
+    nRange = 800;
 }
 
 GLWidget::~GLWidget()
@@ -73,17 +80,6 @@ void GLWidget::initShaders()
     if (!coordPro->bind())
         close();
     coordPro->release();
-
-    //!纹理着色器
-    textPro = new QOpenGLShaderProgram;
-    textPro->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/textvs.vert");
-    textPro->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/textfs.frag");
-    if (!textPro->link())
-        close();
-
-    if (!textPro->bind())
-        close();
-    textPro->release();
 }
 
 void GLWidget::updateData(QVector<QVector3D> local, QVector<unsigned int> ii)
@@ -93,7 +89,7 @@ void GLWidget::updateData(QVector<QVector3D> local, QVector<unsigned int> ii)
         qDebug() << "OpenGL未接收到数据\n";
         return;
     }
-    m_ok = true;
+//    m_ok = true;
     m_vbo.destroy();//释放缓冲区数据
     m_vbo.create();
     m_vbo.bind();
@@ -103,8 +99,8 @@ void GLWidget::updateData(QVector<QVector3D> local, QVector<unsigned int> ii)
     {
         tmp.push_back(local[ii[i]]);
     }
-    m_vbo.allocate(tmp.size() * 3 * sizeof(float));
-    m_vbo.write(0, tmp.data(), tmp.size() * 3 * sizeof(float));
+    m_vbo.allocate(tmp.size() * 3 * static_cast<int>(sizeof(float)));
+    m_vbo.write(0, tmp.data(), tmp.size() * 3 * static_cast<int>(sizeof(float)));
     count = ii.size();
     update();
 }
@@ -125,12 +121,8 @@ void GLWidget::initializeGL()
 {
     initializeOpenGLFunctions();//创建OpenGL上下文环境，初始化OpenGL
     connect(context(), &QOpenGLContext::aboutToBeDestroyed, this, &GLWidget::cleanup);//最好有这句话
-
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-    glEnable(GL_DEPTH_TEST);//允许深度测试
-    glEnable(GL_PROGRAM_POINT_SIZE);
-    glEnable(GL_MULTISAMPLE);
-    glEnable(GL_LINE_SMOOTH);
+
 
     initShaders();
 
@@ -154,11 +146,6 @@ void GLWidget::initializeGL()
     unsigned int coordProuniformID = glGetUniformBlockIndex(coordPro->programId(), "Matrices");
     glUniformBlockBinding(coordPro->programId(), coordProuniformID, uboBindPoint);
     coordPro->release();
-    //!纹理着色器
-    textPro->bind();
-    glUniformBlockBinding(textPro->programId(),
-                          glGetUniformBlockIndex(textPro->programId(), "Matrices"),
-                          uboBindPoint);
 
 
     m_vao.create();
@@ -167,35 +154,27 @@ void GLWidget::initializeGL()
 
     //!坐标轴数据
     QVector<QVector3D> out;
-    genCoordData(QVector3D(400, 100, 100), QVector3D(20, 20, 20), out);
+    genCoordData(QVector3D(400, 100, 100), QVector3D(50, 30, 30), out);
     indexSize = out.size();
     VBO.create();
     VBO.bind();
-    VBO.allocate(out.data(), out.size() * 3 * sizeof(float));//!必须先绑定才能赋值
+    VBO.allocate(out.data(), out.size() * 3 * static_cast<int>(sizeof(float)));//!必须先绑定才能赋值
     VAO.create();
-
-    //!纹理数据
-//    textvbo.create();
-//    textvao.create();
-//    textvbo.bind();
-//    textvbo.setUsagePattern(QOpenGLBuffer::DynamicDraw);
-//    textvbo.allocate(6 * 5 * sizeof(float));
-    glGenBuffers(1, &textvbo);
-    glBindBuffer(GL_ARRAY_BUFFER, textvbo);
-    glBufferData(GL_ARRAY_BUFFER, 5 * 6 * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
-    glGenVertexArrays(1, &textvao);
-    qDebug() << "allo " << glGetError();
 }
 
 
 void GLWidget::paintGL()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_DEPTH_TEST);//允许深度测试
     glEnable(GL_LINE_SMOOTH);
+    glEnable(GL_PROGRAM_POINT_SIZE);
 
-    //!画坐标轴
+    //!OpenGL Draw
+    QPainter painter(this);
+    painter.beginNativePainting();
+
+    //!render model
     coordPro->bind();
     int modelLoc = coordPro->uniformLocation("model");
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, m_world.data());
@@ -203,51 +182,11 @@ void GLWidget::paintGL()
     VAO.bind();
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
     glEnableVertexAttribArray(0);
-    glLineWidth(5.0f);
+    glLineWidth(2.0f);
     glDrawArrays(GL_LINES, 0, indexSize);
     VBO.release();
     VAO.release();
     coordPro->release();
-
-    //!画刻度值
-    mTexture = genTexture(20, 20, "50", 48, QColor(1.0f, 0.0f, 0.0f));
-    float textvert[] =
-    {
-        50.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-        55.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-        50.0f, 5.0f, 0.0f, 0.0f, 1.0f,
-
-        50.0f, 5.0f, 0.0f, 0.0f, 1.0f,
-        55.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-        55.0f, 5.0f, 0.0f, 1.0f, 1.0f
-    };
-    glBindBuffer(GL_ARRAY_BUFFER, textvbo);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(textvert), textvert);
-    glBindVertexArray(textvao);
-//    textvbo.bind();
-//    textvbo.allocate(textvert, sizeof(textvert));
-    textPro->bind();
-    glUniformMatrix4fv(textPro->uniformLocation("model"), 1, GL_FALSE, m_world.data());
-    qDebug() << "write:" << glGetError();
-//    textvao.bind();
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), nullptr);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float),
-                          (void*)(3 * sizeof(float)));
-//    glActiveTexture(GL_TEXTURE0);
-//    mTexture->bind();
-    glLineWidth(5.0f);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    qDebug() << glGetError();
-    mTexture->release();
-//    textvbo.release();
-//    textvao.release();
-//    textPro->release();
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
-    delete mTexture;
-    mTexture = nullptr;
 
     //!画煤场
     m_program->bind();
@@ -259,18 +198,18 @@ void GLWidget::paintGL()
     glEnableVertexAttribArray(0);
     if (Patch == mode)
     {
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);//!这种方式有一点缺陷--会改变所有三角形图元的渲染模式，不管三角形在此之前已被渲染还是在此之后渲染
+//        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);//!这种方式有一点缺陷--会改变所有三角形图元的渲染模式，不管三角形在此之前已被渲染还是在此之后渲染
         glDrawArrays(GL_TRIANGLES, 0, count);
     }
     else if (PointCloud == mode)
     {
-        glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
-        glDrawArrays(GL_TRIANGLES, 0, count);
+//        glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
+        glDrawArrays(GL_POINTS, 0, count);
     }
     else if(Lines == mode)
     {
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        glDrawArrays(GL_TRIANGLES, 0, count);
+//        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        glDrawArrays(GL_LINE_STRIP, 0, count);
     }
     else
     {}
@@ -278,6 +217,26 @@ void GLWidget::paintGL()
     m_vbo.release();
     m_vao.release();
     m_program->release();
+
+    //!Draw Text
+    QPen pen;
+    pen.setColor(Qt::red);
+    painter.setPen(pen);
+    for (QHash<QString, QList<QVector3D>>::iterator it = labels.begin(); it != labels.end(); ++it)
+    {
+        QList<QVector3D> points = it.value();
+        for (int i = 0; i < points.size(); ++i)
+        {
+            QVector3D d3 = points.at(i);
+            QVector4D ndc = m_proj * m_camera * m_world * QVector4D(d3, 1.0f);
+            //!计算像素
+            int x = static_cast<int>((this->width() * 0.5f - 0.5f) * (ndc[0] + ndc[3]));
+            int y = static_cast<int>((this->height() * 0.5f - 0.5f) * (ndc[3] - ndc[1]));
+            painter.drawText(x, y, it.key());
+        }
+    }
+    painter.endNativePainting();
+
 }
 
 void GLWidget::resizeGL(int w, int h)
@@ -296,8 +255,6 @@ void GLWidget::resizeGL(int w, int h)
                           0, 0, 0, 1);
 
     m_proj.setToIdentity();
-//    m_proj.perspective(45.0f, GLfloat(w) / h, 0.1f, 1000.0f);
-//    m_proj.ortho(-w / 2, w / 2, -h / 2, h / 2, 1.0f, 1000.0f);
     if (w <= h){
         m_proj.ortho(-nRange, nRange, -nRange*h/w, nRange*h/w, -nRange, nRange);
     }
@@ -348,9 +305,9 @@ void GLWidget::mouseMoveEvent(QMouseEvent *event)
 }
 
 
-void GLWidget::keyPressEvent(QKeyEvent* key)
-{
-}
+//void GLWidget::keyPressEvent(QKeyEvent* key)
+//{
+//}
 
 void GLWidget::wheelEvent(QWheelEvent *event)
 {
@@ -383,41 +340,47 @@ void GLWidget::setRenderMode(RenderMode mode)
 bool GLWidget::genCoordData(const QVector3D max, const QVector3D step,
                   QVector<QVector3D>& out)
 {
-    int x = max.x();
-    int y = max.y();
-    int z = max.z();
+    float x = max.x();
+    float y = max.y();
+    float z = max.z();
 
-    int stepx = step.x();
-    int stepy = step.y();
-    int stepz = step.z();
+    float stepx = step.x();
+    float stepy = step.y();
+    float stepz = step.z();
 
-    if (0 == x | 0 == y | 0 == z |
-            0 == stepx | 0 == stepy | 0 == stepz)
+    if ( abs(x - 0.0f) < 1e-3f | abs(y - 0.0f) < 1e-3f | abs(z - 0.0f) < 1e-3f |
+            abs(stepx - 0.0f) < 1e-3f | abs(stepy - 0.0f) < 1e-3f | abs(stepz - 0.0f) < 1e-3f)
     {
         return false;
     }
 
-    int numX = x / stepx;
-    int numY = y / stepy;
-    int numZ = z / stepz;
+    int numX = static_cast<int>(x / stepx);
+    int numY = static_cast<int>(y / stepy);
+    int numZ = static_cast<int>(z / stepz);
     //!生成刻度
     //! x方向刻度
     for (int i = 0; i < numX; ++i)
     {
         out.push_back(QVector3D((i + 1) * stepx, 0.0f, 0.0f));//!刻度起点
         out.push_back(QVector3D((i + 1) * stepx, 0.0f, -2.0f));//!刻度终点
+        QString label = QString::number(static_cast<int>((i + 1) * stepx));
+        labels[label].push_back(QVector3D((i + 1) * stepx, 0.0f, -2.0f));
     }
     //! y方向刻度
     for (int i = 0; i < numY; ++i)
     {
         out.push_back(QVector3D(0.0f, (i + 1) * stepy, 0.0f));//!刻度起点
         out.push_back(QVector3D(-2.0f, (i + 1) * stepy, -2.0f));//!刻度终点
+        QString label = QString::number(static_cast<int>((i + 1) * stepy));
+        labels[label].push_back(QVector3D(-2.0f, (i + 1) * stepy, -2.0f));
     }
     //! z方向刻度
     for (int i = 0; i < numZ; ++i)
     {
         out.push_back(QVector3D(0.0f, 0.0f, (i + 1) * stepz));//!刻度起点
         out.push_back(QVector3D(0.0f,-2.0f, (i + 1) * stepz));//!刻度终点
+        QString label = QString::number(static_cast<int>((i + 1) * stepz));
+        labels[label].push_back(QVector3D(0.0f,-2.0f, (i + 1) * stepz));
     }
     //! xyz轴
     out.push_back(QVector3D(0.0f, 0.0f, 0.0f));
@@ -428,31 +391,12 @@ bool GLWidget::genCoordData(const QVector3D max, const QVector3D step,
 
     out.push_back(QVector3D(0.0f, 0.0f, 0.0f));
     out.push_back(QVector3D(0.0f, 0.0f, 1.0f * z));
-}
 
-QOpenGLTexture* GLWidget::genTexture(int width, int height, const QString &text, int textPixelSize, const QColor &textColor)
-{
-    QOpenGLTexture *texture = new QOpenGLTexture(QOpenGLTexture::Target2D);
-
-    QImage img(width, height, QImage::Format_ARGB32_Premultiplied);
-    img.fill(QColor(0, 0, 0, 0));//!背景透明
-
-    QPainter painter;
-    QFont font;
-    painter.begin(&img);
-    font.setPixelSize(textPixelSize);
-    painter.setFont(font);
-    QPen pen;
-    pen.setColor(textColor);
-    painter.setPen(pen);
-    QTextOption option(Qt::AlignLeft | Qt::AlignTop);
-    option.setWrapMode(QTextOption::WordWrap);
-    QRectF rect(0, 0, width, height);
-    painter.drawText(rect, text, option);
-    painter.end();
-    texture->setData(img);
-    texture->setMinificationFilter(QOpenGLTexture::Linear);
-    texture->setMagnificationFilter(QOpenGLTexture::Linear);
-    texture->setWrapMode(QOpenGLTexture::Repeat);
-    return texture;
+    //! xyz标签
+    QString label("X");
+    labels[label].push_back(QVector3D(1.0f * x + 10.0f, 0.0f, 0.0f));
+    label = "Y";
+    labels[label].push_back(QVector3D(0.0f, 1.0f * y + 10.0f, 0.0f));
+    label = "Z";
+    labels[label].push_back(QVector3D(0.0f, 0.0f, 1.0f * z + 10.0f));
 }

@@ -9,9 +9,8 @@
 #include <QMouseEvent>
 #include <QOpenGLTexture>
 #include <QPainter>
-
-//#include <ft2build.h>
-//#include FT_FREETYPE_H
+#include <QHash>
+#include <QList>
 
 
 QT_FORWARD_DECLARE_CLASS(QOpenGLShaderProgram)
@@ -58,7 +57,7 @@ protected:
     QSize minimumSizeHint() const override; //!作为子窗口时设置子窗口最小尺寸
     QSize sizeHint() const override;        //!作为子窗口时设置子窗口默认尺寸
 
-    void keyPressEvent(QKeyEvent* key) override;//!键盘事件
+//    void keyPressEvent(QKeyEvent* key) override;//!键盘事件
     void wheelEvent(QWheelEvent *event) override;//!滚轮事件
     void mousePressEvent(QMouseEvent *event) override;//!鼠标按下事件
     void mouseMoveEvent(QMouseEvent *event) override;//!鼠标移动事件
@@ -73,7 +72,9 @@ private:
     ***********/
     bool genCoordData(const QVector3D max, const QVector3D step,
                       QVector<QVector3D>& out);
-    RenderMode mode;
+
+    RenderMode mode;//!渲染模式
+    int nRange;
 
     unsigned int uboExampleBlock;//!uniform缓冲块句柄
     unsigned int uboBindPoint;  //!ubo绑定点
@@ -90,6 +91,7 @@ private:
     QOpenGLShaderProgram *coordPro;//!坐标着色器
     QOpenGLBuffer VBO;
     QOpenGLVertexArrayObject VAO;
+    QHash<QString, QList<QVector3D> > labels;//!存储坐标轴刻度及其世界坐标位置,键为标签
 
     //!各种变换矩阵
     QMatrix4x4 m_proj;
@@ -106,26 +108,9 @@ private:
     QPointF m_lastPos;//!鼠标最后一次的位置
 
 
-    QVector<QVector<QVector3D>> cloudPoints;//!模型三维点云,二维vector
-    QVector<GLuint> index;
-    bool m_ok = false;
-
-    int nRange;
-
-    //!字符纹理
-    QOpenGLTexture *mTexture;
-    struct Vertex
-    {
-        QVector3D positon;
-        QVector2D tex;
-    };
-//    QOpenGLBuffer textvbo;
-//    QOpenGLVertexArrayObject textvao;
-    QOpenGLShaderProgram *textPro;//!纹理着色器
-    GLuint textvbo, textvao;
-
-    QOpenGLTexture* genTexture(int width, int height, const QString &text, int textPixelSize, const QColor &textColor);
-
+//    QVector<QVector<QVector3D>> cloudPoints;//!模型三维点云,二维vector
+//    QVector<GLuint> index;
+//    bool m_ok = false;
 };
 
 #endif // OPENGLWIDGET_H
