@@ -5,3 +5,6 @@
 Makefile
 /debug/*
 *.user
+*.user.*
+data.txt
+indices.txt
