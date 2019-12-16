@@ -1,6 +1,6 @@
 # 学习QT+OpenGL
 
-## 2019-12-10更新点
+## 2019-12-10 更新点
 
 1. 基于QtOpenGLWidget + QtPaint混合渲染的方式渲染字符。OpenGL负责渲染三维模型，QtPaint负责渲染二维文本。了解到QtPaintEvent会调用GLPaint函数，所以直接在GLPaint函数中渲染文本字符，而不必重写控件的paintEvent。
 
@@ -13,3 +13,12 @@
 2. 混合编程时，请确保在QtPaint绘制之前，OpenGL的所有状态已关闭，所以，最好让QtPaint最后绘制，具体请参考如下连接：
 
     [OpenGL和QPainter混合编程](https://www.qt.io/blog/2011/11/21/qt-commercial-support-weekly-4-mixing-opengl-and-qpainter-qt-4-5-x-with-sun-studio-12-2)
+
+## 2019-12-16 更新点
+
+1. 增加相机矩阵，正交投影改为透视投影；
+
+2. 鼠标控制模型运更直接。始终要记住，模型始终移动沿着x轴左右移动，沿着z轴上下移动；
+
+3. 更改模型和坐标轴顶点着色器uniform块为投影矩阵和模型矩阵，相机矩阵作为uniform变量每次更新后从cpu传给GPU；
+

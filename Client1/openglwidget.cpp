@@ -31,21 +31,25 @@ GLWidget::GLWidget(QWidget *parent)
     QSurfaceFormat::setDefaultFormat(format);
 
     setFocusPolicy(Qt::StrongFocus);
-    m_camera.setToIdentity();
-    m_camera.lookAt(QVector3D(10.0f, 20.0f, 10.0f), QVector3D(0, 0, 0), QVector3D(0, 1, 0));
-    lightColor = QVector3D(1.0f, 1.0f, 1.0f);
-    objectColor = QVector3D(1.0f, 0.5f, 0.31f);
     count = 0;
     mode = PointCloud;//!默认点云渲染
 
-    nRange = 800;
+    x0 = 0.0f;
+    x1 = 100.0f;
+    y0 = 0.0f;
+    y1 = 100.0f;
+    z0 = 0.0f;
+    z1 = 1000.0f;
+    anglex = -90.0f;
+    angley = 0.0f;
+    anglez = 0.0f;
+    PosX = -500.0f;//! 实际上是z
+    PosY = 0.0f;//! 实际上是x
+    PosZ = 0.0f;//! 实际上是y
 }
 
 GLWidget::~GLWidget()
 {
-//    cleanup();
-//    FT_Done_Face(face);
-//    FT_Done_FreeType(ft);
 }
 
 QSize GLWidget::minimumSizeHint() const
@@ -80,6 +84,7 @@ void GLWidget::initShaders()
     if (!coordPro->bind())
         close();
     coordPro->release();
+
 }
 
 void GLWidget::updateData(QVector<QVector3D> local, QVector<unsigned int> ii)
@@ -122,8 +127,6 @@ void GLWidget::initializeGL()
     initializeOpenGLFunctions();//创建OpenGL上下文环境，初始化OpenGL
     connect(context(), &QOpenGLContext::aboutToBeDestroyed, this, &GLWidget::cleanup);//最好有这句话
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-
-
     initShaders();
 
     //!创建uniform缓冲区
@@ -152,7 +155,7 @@ void GLWidget::initializeGL()
     m_vbo.create();
     m_colorvbo.create();
 
-    //!坐标轴数据
+    //! 坐标轴数据
     QVector<QVector3D> out;
     genCoordData(QVector3D(400, 100, 100), QVector3D(50, 30, 30), out);
     indexSize = out.size();
@@ -160,6 +163,13 @@ void GLWidget::initializeGL()
     VBO.bind();
     VBO.allocate(out.data(), out.size() * 3 * static_cast<int>(sizeof(float)));//!必须先绑定才能赋值
     VAO.create();
+
+    m_camera.setToIdentity();
+    m_camera.translate(PosY, PosZ, PosX);
+    m_camera.rotate(anglex, QVector3D(1.0f, 0.0f, 0.0f));
+    m_camera.rotate(angley, QVector3D(0.0f, 1.0f, 0.0f));
+    m_camera.rotate(anglez, QVector3D(0.0f, 0.0f, 1.0f));
+    m_model.setToIdentity();
 }
 
 
@@ -174,10 +184,10 @@ void GLWidget::paintGL()
     QPainter painter(this);
     painter.beginNativePainting();
 
-    //!render model
+    //! 画坐标轴
     coordPro->bind();
-    int modelLoc = coordPro->uniformLocation("model");
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, m_world.data());
+    int modelLoc = coordPro->uniformLocation("camera");
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, m_camera.data());
     VBO.bind();
     VAO.bind();
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
@@ -190,26 +200,26 @@ void GLWidget::paintGL()
 
     //!画煤场
     m_program->bind();
-    modelLoc = m_program->uniformLocation("model");
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, m_world.data());
+    modelLoc = m_program->uniformLocation("camera");
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, m_camera.data());
     m_vbo.bind();
     m_vbo.bind();
     glVertexAttribPointer(0, 3, GL_FLOAT, false, 3 * sizeof(float), nullptr);
     glEnableVertexAttribArray(0);
     if (Patch == mode)
     {
-//        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);//!这种方式有一点缺陷--会改变所有三角形图元的渲染模式，不管三角形在此之前已被渲染还是在此之后渲染
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);//!这种方式有一点缺陷--会改变所有三角形图元的渲染模式，不管三角形在此之前已被渲染还是在此之后渲染
         glDrawArrays(GL_TRIANGLES, 0, count);
     }
     else if (PointCloud == mode)
     {
-//        glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
-        glDrawArrays(GL_POINTS, 0, count);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
+        glDrawArrays(GL_TRIANGLES, 0, count);
     }
     else if(Lines == mode)
     {
-//        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        glDrawArrays(GL_LINE_STRIP, 0, count);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        glDrawArrays(GL_TRIANGLES, 0, count);
     }
     else
     {}
@@ -218,7 +228,8 @@ void GLWidget::paintGL()
     m_vao.release();
     m_program->release();
 
-    //!Draw Text
+    //! 文本
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     QPen pen;
     pen.setColor(Qt::red);
     painter.setPen(pen);
@@ -228,46 +239,32 @@ void GLWidget::paintGL()
         for (int i = 0; i < points.size(); ++i)
         {
             QVector3D d3 = points.at(i);
-            QVector4D ndc = m_proj * m_camera * m_world * QVector4D(d3, 1.0f);
+            QVector4D ndc = m_proj * m_camera * m_model * QVector4D(d3, 1.0f);
+            QVector4D cam = m_camera * m_model * QVector4D(d3, 1.0f);
+            ndc = ndc / cam[2];
             //!计算像素
             int x = static_cast<int>((this->width() * 0.5f - 0.5f) * (ndc[0] + ndc[3]));
             int y = static_cast<int>((this->height() * 0.5f - 0.5f) * (ndc[3] - ndc[1]));
-            painter.drawText(x, y, it.key());
+            painter.drawText(qAbs(x), qAbs(y), it.key());
         }
     }
     painter.endNativePainting();
-
 }
 
 void GLWidget::resizeGL(int w, int h)
 {
-    rotationM.setToIdentity();
-    translateM.setToIdentity();
-    scaleM.setToIdentity();
-    //!w, h是像素值
-    m_world.setToIdentity();
-    //!转换为左手坐标系：
-    m_world.translate(-80, -50, 0.f);//!这里要想办法根据窗口大小自适应平移距离
-    m_world.rotate(-90, QVector3D(1, 0, 0));//!绕x轴旋转90°
-    m_world *= QMatrix4x4(0, 1, 0, 0,
-                          1, 0, 0, 0,
-                          0, 0, 1, 0,
-                          0, 0, 0, 1);
-
+    //! 初始默认坐标轴在窗口中间
+    //! w, h是像素值
     m_proj.setToIdentity();
-    if (w <= h){
-        m_proj.ortho(-nRange, nRange, -nRange*h/w, nRange*h/w, -nRange, nRange);
-    }
-    else{
-        m_proj.ortho(-nRange*w/h, nRange*w/h, -nRange, nRange, -nRange, nRange);
-    }
+    m_proj.perspective(45, 1.0f *  w / h, 0.1f, 1000.0f);
 
     glBindBuffer(GL_UNIFORM_BUFFER, uboExampleBlock);
     glBufferSubData(GL_UNIFORM_BUFFER, 0, 16 * sizeof(float), m_proj.data());
-    glBufferSubData(GL_UNIFORM_BUFFER, 16 * sizeof(float), 16 * sizeof(float), m_camera.data());
+    glBufferSubData(GL_UNIFORM_BUFFER, 16 * sizeof(float),
+                    16 * sizeof(float), m_model.data());
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
-    int side = qMin(w, h);
-    glViewport((w - side) / 2, (h - side) / 2, side, side);
+
+    update();
 
 }
 
@@ -283,51 +280,42 @@ void GLWidget::mousePressEvent(QMouseEvent *event)
 
 void GLWidget::mouseMoveEvent(QMouseEvent *event)
 {
-    float dx = static_cast<int>(event->localPos().x() - m_lastPos.x());//移动的像素距离
-    float dy = static_cast<int>(event->localPos().y() - m_lastPos.y());
+    float dx = static_cast<float>(event->localPos().x() - m_lastPos.x());//移动的像素距离
+    float dy = static_cast<float>(event->localPos().y() - m_lastPos.y());
+
     if (event->buttons() & Qt::LeftButton)
     {
-        rotationM.setToIdentity();
-        QVector3D n = QVector3D(dy, -dx, 0.0).normalized();//!旋转轴
-        float acc = sqrt(dx * dx + dy * dy) / 50.0f;//旋转角度
-        QVector3D rotationAxis = n.normalized();
-        rotationM.rotate(-acc, rotationAxis);
-
-        m_world *= rotationM;
+        m_camera.rotate(dy * 0.05f, QVector3D(0.0f, 1.0f, 0.0f));
+        m_camera.rotate(dx * 0.05f, QVector3D(0.0f, 0.0f, 1.0f));
     }
-    else if (event->buttons() & Qt::MidButton)
+    if (event->buttons() & Qt::MidButton)
     {
-        translateM.setToIdentity();
-        translateM.translate(dx * 0.03f, 0.0f, -dy * 0.03f);
-        m_world *= translateM;
+        m_camera.translate(dx * 0.05f, 0.0f, -dy * 0.05f);
     }
     update();
 }
 
-
-//void GLWidget::keyPressEvent(QKeyEvent* key)
-//{
-//}
-
 void GLWidget::wheelEvent(QWheelEvent *event)
 {
-    scaleM.setToIdentity();
-    if (event->delta() > 0)//滚轮远离使用者
-        {
-            scaleM *= QMatrix4x4(1.5f, 0.0f, 0.0f, 0.f,
-                                 0.f, 1.5f, 0.f, 0.f,
-                                 0.f, 0.f, 1.5f, 0.f,
-                                 0.f, 0.f, 0.f, 1.f);
+    QMatrix4x4 s;
+    s.setToIdentity();
+    if (event->delta() > 0)//放大
+    {
+        s *= QMatrix4x4(1.5f, 0.0, 0.0f, 0.0f,
+                           0.0f, 1.5f, 0.0f, 0.0f,
+                           0.0f, 0.0f, 1.5f, 0.0f,
+                           0.0f, 0.0f, 0.0f, 1.0f);
 
-        }
-        else if (event->delta() < 0)//滚轮靠近使用者
-        {
-            scaleM *= QMatrix4x4(0.8f, 0.0f, 0.0f, 0.0f,
-                                 0.0f, 0.8f, 0.0f, 0.0f,
-                                 0.0f, 0.0f, 0.8f, 0.0f,
-                                 0.0f, 0.0f, 0.0f, 1.0f);
-        }
-    m_world *= scaleM;
+    }
+    else if (event->delta() < 0)//缩小
+    {
+        s *= QMatrix4x4(0.8f, 0.0, 0.0f, 0.0f,
+                           0.0f, 0.8f, 0.0f, 0.0f,
+                           0.0f, 0.0f, 0.8f, 0.0f,
+                           0.0f, 0.0f, 0.0f, 1.0f);
+    }
+
+    m_camera *= s;
     update();
 }
 
@@ -348,8 +336,8 @@ bool GLWidget::genCoordData(const QVector3D max, const QVector3D step,
     float stepy = step.y();
     float stepz = step.z();
 
-    if ( abs(x - 0.0f) < 1e-3f | abs(y - 0.0f) < 1e-3f | abs(z - 0.0f) < 1e-3f |
-            abs(stepx - 0.0f) < 1e-3f | abs(stepy - 0.0f) < 1e-3f | abs(stepz - 0.0f) < 1e-3f)
+    if ((abs(x - 0.0f) < 1e-3f || abs(y - 0.0f) < 1e-3f || abs(z - 0.0f) < 1e-3f ||
+            abs(stepx - 0.0f) < 1e-3f || abs(stepy - 0.0f) < 1e-3f || abs(stepz - 0.0f) < 1e-3f))
     {
         return false;
     }
@@ -399,4 +387,5 @@ bool GLWidget::genCoordData(const QVector3D max, const QVector3D step,
     labels[label].push_back(QVector3D(0.0f, 1.0f * y + 10.0f, 0.0f));
     label = "Z";
     labels[label].push_back(QVector3D(0.0f, 0.0f, 1.0f * z + 10.0f));
+    return true;
 }

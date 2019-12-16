@@ -11,6 +11,7 @@
 #include <QPainter>
 #include <QHash>
 #include <QList>
+#include <QQuaternion>
 
 
 QT_FORWARD_DECLARE_CLASS(QOpenGLShaderProgram)
@@ -22,15 +23,6 @@ typedef enum RenderMode
     Lines,      //!线模式
     NotRender   //!不渲染
 };
-
-struct Character {
-    GLuint TextureID;  // 字形纹理的ID
-    QSize Size;       // 字形大小
-    QSize Bearing;    // 从基准线到字形左部/顶部的偏移值
-    GLuint Advance;    // 原点距下一个字形原点的距离
-};
-
-
 
 
 class GLWidget : public QOpenGLWidget, protected QOpenGLFunctions_4_5_Core
@@ -94,23 +86,19 @@ private:
     QHash<QString, QList<QVector3D> > labels;//!存储坐标轴刻度及其世界坐标位置,键为标签
 
     //!各种变换矩阵
-    QMatrix4x4 m_proj;
-    QMatrix4x4 m_camera;
-    QMatrix4x4 m_world;
-    QVector3D lightColor;//!光源颜色
-    QVector3D objectColor;//!物体反射的颜色
-    QVector3D lightPos;//!光源位置
-
-    QMatrix4x4 scaleM;//!缩放矩阵
-    QMatrix4x4 rotationM;//!旋转矩阵
-    QMatrix4x4 translateM;//!平移矩阵
-
-    QPointF m_lastPos;//!鼠标最后一次的位置
-
-
-//    QVector<QVector<QVector3D>> cloudPoints;//!模型三维点云,二维vector
-//    QVector<GLuint> index;
-//    bool m_ok = false;
+    float x0, x1, y0, y1, z0, z1;//!取值范围
+    QMatrix4x4 m_proj; //! 投影矩阵
+    QMatrix4x4 m_camera; //! 相机矩阵
+    QMatrix4x4 m_model; //! 模型矩阵
+    QMatrix4x4 mvp;
+    QPointF m_lastPos;//! 鼠标最后一次的位置
+    float scal; //! 缩放因子
+    float anglex; //! x方向旋转角度
+    float angley; //! y方向旋转角度
+    float anglez; //! z方向旋转角度
+    float PosX;
+    float PosY;
+    float PosZ;
 };
 
 #endif // OPENGLWIDGET_H

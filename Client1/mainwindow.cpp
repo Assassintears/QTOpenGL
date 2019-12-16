@@ -224,7 +224,7 @@ bool MainWindow::his_pushed()
     {
         if (!db.open())
         {
-            qDebug() << db.lastError().text() << "\n";
+            qDebug() << "It's filed to connect DB: " << db.lastError().text() << "\n";
             return !res;
         }
     }
