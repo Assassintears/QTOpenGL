@@ -214,9 +214,11 @@ void MainWindow::SignalSlots()
     connect(edity0, &QLineEdit::editingFinished, this, &MainWindow::initY);
     connect(editstepy, &QLineEdit::editingFinished, this, &MainWindow::initStepY);
     connect(start, &QPushButton::clicked, this, &MainWindow::on_Start_click);
+    connect(bright_rotate, &QPushButton::clicked, openglwidget, &GLWidget::rotateRight);
+    connect(bleft_rotate, &QPushButton::clicked, openglwidget, &GLWidget::rotateLeft);
 }
 
-bool MainWindow::his_pushed()
+bool MainWindow::startIPC()
 {
     bool res = true;
 
@@ -238,7 +240,8 @@ bool MainWindow::his_pushed()
         qDebug() << "an error occured when start client\n";
         qDebug() << db.lastError().text() << "\n";
     }
-    else {
+    else
+    {
         qDebug() << "Start Client\n";
         query.clear();
         db.close();
@@ -382,7 +385,7 @@ void MainWindow::on_Start_click()
     QString tx = start->text();
     if ("Start" == tx)
     {
-        if (his_pushed())
+        if (startIPC())
         {
             start->setText("End");
         }

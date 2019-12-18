@@ -38,6 +38,8 @@ public slots:
     void paintOpenGL();
     void setRenderMode(RenderMode mode);
     void updateData(QVector<QVector3D> local, QVector<unsigned int> ii);
+    void rotateRight();
+    void rotateLeft();
 
 
 
@@ -53,6 +55,7 @@ protected:
     void wheelEvent(QWheelEvent *event) override;//!滚轮事件
     void mousePressEvent(QMouseEvent *event) override;//!鼠标按下事件
     void mouseMoveEvent(QMouseEvent *event) override;//!鼠标移动事件
+    void mouseDoubleClickEvent(QMouseEvent *event) override; //! 左键双击事件--重置OpenGL模型初始位置
 
 private:
     void initShaders();
@@ -66,7 +69,6 @@ private:
                       QVector<QVector3D>& out);
 
     RenderMode mode;//!渲染模式
-    int nRange;
 
     unsigned int uboExampleBlock;//!uniform缓冲块句柄
     unsigned int uboBindPoint;  //!ubo绑定点

@@ -87,8 +87,8 @@ private:
     void createStatusBar(); //!创建状态栏
 
 private:
-    void  SignalSlots();
-     bool his_pushed();//!发送开始命令
+     void  SignalSlots();
+     bool startIPC();//!发送开始命令
      bool stopIPC();//!发送停止命令
 
 public slots:
@@ -100,6 +100,7 @@ public slots:
     void pollingDataBase();//!轮询数据库
     void initY();//!初始化Y0
     void initStepY();//!初始化stepY
+
 };
 
 #endif // MAINWINDOW_H

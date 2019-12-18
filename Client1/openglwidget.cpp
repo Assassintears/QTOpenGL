@@ -16,6 +16,7 @@
 #include <QPainter>
 #include <QPen>
 #include <QFont>
+#include <QtMath>
 
 
 GLWidget::GLWidget(QWidget *parent)
@@ -40,12 +41,12 @@ GLWidget::GLWidget(QWidget *parent)
     y1 = 100.0f;
     z0 = 0.0f;
     z1 = 1000.0f;
-    anglex = -90.0f;
+    anglex = -70.0f;
     angley = 0.0f;
-    anglez = 0.0f;
-    PosX = -500.0f;//! 实际上是z
-    PosY = 0.0f;//! 实际上是x
-    PosZ = 0.0f;//! 实际上是y
+    anglez = -135.0f;
+    PosX = 0.0f;//!
+    PosY = 0.0f;    //! y位置
+    PosZ = -500.0f;//!
 }
 
 GLWidget::~GLWidget()
@@ -94,7 +95,6 @@ void GLWidget::updateData(QVector<QVector3D> local, QVector<unsigned int> ii)
         qDebug() << "OpenGL未接收到数据\n";
         return;
     }
-//    m_ok = true;
     m_vbo.destroy();//释放缓冲区数据
     m_vbo.create();
     m_vbo.bind();
@@ -165,7 +165,7 @@ void GLWidget::initializeGL()
     VAO.create();
 
     m_camera.setToIdentity();
-    m_camera.translate(PosY, PosZ, PosX);
+    m_camera.translate(PosX, PosY, PosZ);
     m_camera.rotate(anglex, QVector3D(1.0f, 0.0f, 0.0f));
     m_camera.rotate(angley, QVector3D(0.0f, 1.0f, 0.0f));
     m_camera.rotate(anglez, QVector3D(0.0f, 0.0f, 1.0f));
@@ -188,10 +188,10 @@ void GLWidget::paintGL()
     coordPro->bind();
     int modelLoc = coordPro->uniformLocation("camera");
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, m_camera.data());
-    VBO.bind();
     VAO.bind();
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
+    VBO.bind();
     glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
     glLineWidth(2.0f);
     glDrawArrays(GL_LINES, 0, indexSize);
     VBO.release();
@@ -202,7 +202,6 @@ void GLWidget::paintGL()
     m_program->bind();
     modelLoc = m_program->uniformLocation("camera");
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, m_camera.data());
-    m_vbo.bind();
     m_vbo.bind();
     glVertexAttribPointer(0, 3, GL_FLOAT, false, 3 * sizeof(float), nullptr);
     glEnableVertexAttribArray(0);
@@ -241,11 +240,11 @@ void GLWidget::paintGL()
             QVector3D d3 = points.at(i);
             QVector4D ndc = m_proj * m_camera * m_model * QVector4D(d3, 1.0f);
             QVector4D cam = m_camera * m_model * QVector4D(d3, 1.0f);
-            ndc = ndc / cam[2];
+//            ndc = ndc / cam[2];
             //!计算像素
             int x = static_cast<int>((this->width() * 0.5f - 0.5f) * (ndc[0] + ndc[3]));
             int y = static_cast<int>((this->height() * 0.5f - 0.5f) * (ndc[3] - ndc[1]));
-            painter.drawText(qAbs(x), qAbs(y), it.key());
+            painter.drawText(x, y, it.key());
         }
     }
     painter.endNativePainting();
@@ -256,16 +255,15 @@ void GLWidget::resizeGL(int w, int h)
     //! 初始默认坐标轴在窗口中间
     //! w, h是像素值
     m_proj.setToIdentity();
-    m_proj.perspective(45, 1.0f *  w / h, 0.1f, 1000.0f);
+//    m_proj.perspective(45, 1.0f *  w / h, 0.1f, 1000.0f);
+    m_proj.ortho(-w / 2.0f, w / 2.0f, -h / 2.0f, h / 2.0f, 0.1f, 1000.0f);
 
     glBindBuffer(GL_UNIFORM_BUFFER, uboExampleBlock);
     glBufferSubData(GL_UNIFORM_BUFFER, 0, 16 * sizeof(float), m_proj.data());
     glBufferSubData(GL_UNIFORM_BUFFER, 16 * sizeof(float),
                     16 * sizeof(float), m_model.data());
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
-    update();
-
+//    update();
 }
 
 void GLWidget::paintOpenGL()
@@ -278,20 +276,41 @@ void GLWidget::mousePressEvent(QMouseEvent *event)
    m_lastPos = event->localPos();
 }
 
+void GLWidget::mouseDoubleClickEvent(QMouseEvent *event)
+{
+    if (event->button() == Qt::LeftButton)
+    {
+        m_camera.setToIdentity();
+        m_camera.translate(PosX, PosY, PosZ);
+        m_camera.rotate(anglex, QVector3D(1.0f, 0.0f, 0.0f));
+        m_camera.rotate(angley, QVector3D(0.0f, 1.0f, 0.0f));
+        m_camera.rotate(anglez, QVector3D(0.0f, 0.0f, 1.0f));
+        m_proj.setToIdentity();
+//        m_proj.perspective(45.0f, 1.0f *  this->width() / this->height(), 0.1f, 1000.0f);
+        m_proj.ortho(-this->width() / 2.0f, this->width() / 2.0f,
+                     -this->height() / 2.0f, this->height() / 2.0f, 0.1f, 1000.0f);
+
+        m_model.setToIdentity();
+        update();
+    }
+}
+
 void GLWidget::mouseMoveEvent(QMouseEvent *event)
 {
-    float dx = static_cast<float>(event->localPos().x() - m_lastPos.x());//移动的像素距离
-    float dy = static_cast<float>(event->localPos().y() - m_lastPos.y());
+    QPointF currentPoint = event->localPos();
+    float dx = static_cast<float>(currentPoint.x() - m_lastPos.x());//移动的像素距离
+    float dy = static_cast<float>(currentPoint.y() - m_lastPos.y());
 
     if (event->buttons() & Qt::LeftButton)
     {
-        m_camera.rotate(dy * 0.05f, QVector3D(0.0f, 1.0f, 0.0f));
-        m_camera.rotate(dx * 0.05f, QVector3D(0.0f, 0.0f, 1.0f));
+        m_camera.rotate(dy, QVector3D(0.0f, 1.0f, 0.0f));
+        m_camera.rotate(dx, QVector3D(0.0f, 0.0f, 1.0f));
     }
-    if (event->buttons() & Qt::MidButton)
+    if (event->buttons() & Qt::RightButton)
     {
-        m_camera.translate(dx * 0.05f, 0.0f, -dy * 0.05f);
+        m_camera.translate(-dx * 0.5f, 0.0f, -dy * 0.5f);
     }
+    m_lastPos = currentPoint;
     update();
 }
 
@@ -301,6 +320,7 @@ void GLWidget::wheelEvent(QWheelEvent *event)
     s.setToIdentity();
     if (event->delta() > 0)//放大
     {
+        scal *= 1.5f;
         s *= QMatrix4x4(1.5f, 0.0, 0.0f, 0.0f,
                            0.0f, 1.5f, 0.0f, 0.0f,
                            0.0f, 0.0f, 1.5f, 0.0f,
@@ -309,13 +329,25 @@ void GLWidget::wheelEvent(QWheelEvent *event)
     }
     else if (event->delta() < 0)//缩小
     {
+        scal *= 0.8f;
         s *= QMatrix4x4(0.8f, 0.0, 0.0f, 0.0f,
                            0.0f, 0.8f, 0.0f, 0.0f,
                            0.0f, 0.0f, 0.8f, 0.0f,
                            0.0f, 0.0f, 0.0f, 1.0f);
-    }
 
-    m_camera *= s;
+    }
+    if (scal < static_cast<float>(qPow(0.8, 5)))
+    {
+        scal = static_cast<float>(qPow(0.8, 5));
+    }
+   else if (scal > static_cast<float>(qPow(1.5, 5)))
+    {
+        scal = static_cast<float>(qPow(1.5, 5));
+    }
+    else
+    {
+        m_camera *= s;
+    }
     update();
 }
 
@@ -388,4 +420,15 @@ bool GLWidget::genCoordData(const QVector3D max, const QVector3D step,
     label = "Z";
     labels[label].push_back(QVector3D(0.0f, 0.0f, 1.0f * z + 10.0f));
     return true;
+}
+
+void GLWidget::rotateRight()
+{
+    m_camera.rotate(10, QVector3D(0.0f, 0.0f, 1.0f));
+    update();
+}
+void GLWidget::rotateLeft()
+{
+    m_camera.rotate(-10, QVector3D(0.0f, 0.0f, 1.0f));
+    update();
 }
