@@ -5,87 +5,24 @@
 
 CData::CData()
 {
-    server = new QTcpServer;
-//    QHostAddress host("192.168.2.136");
-//    server->listen(host, 7171);
-    SignalsSlots();
-
-    file.open("data.txt", std::ios::app);
-    if (!file.is_open())
-    {
-        qDebug() << "文件打开失败\n";
-    }
-
 }
 
 CData::~CData()
 {
-    server->close();
 }
 
 
 
-void CData::SignalsSlots()
-{
-    connect(server, &QTcpServer::newConnection, this, &CData::acceptConnection);
-    connect(this, &CData::receive, this, &CData::onDataProcess);
-
-}
-
-void CData::errors(QAbstractSocket::SocketError e)
-{
-    if (QAbstractSocket::UnknownSocketError != e)
-    {
-        ;
-    }
-}
-
-void CData::onDisconnected()
-{
-    QHostAddress host("192.168.2.136");
-    server->listen(host, 7171);
-//    server->close();
-}
-
-void CData::acceptConnection()
-{
-//    socket = server->nextPendingConnection();
-//    connect(socket, &QTcpSocket::readyRead, this, &CData::readBuf);
-//    connect(socket, &QTcpSocket::disconnected, this, &CData::onDisconnected);
-//    connect(socket, &QTcpSocket::connected, this, &CData::connected);
-}
-
-
-void CData::connected()
-{
-    qDebug() << "yes\n";
-}
-
-
-void CData::readBuf()
-{
-    QByteArray buf;
-    buf = socket->readAll();
-    QJsonDocument document;
-    document = QJsonDocument::fromJson(buf);
-    emit receive(document);
-}
-
- void CData::onDataProcess(QJsonDocument& doc)
- {
- }
-
-
- void CData::receiveDataFromDB(QVector<QVector<float>> db)
+ void CData::calcPoint(QVector<QVector<float>> db)
  {
      if (db.empty())
      {
          qDebug() << "No data" << "\n";
          return;
      }
-     int rows = db.size();
-     int cols = db[0].size();
-     int pointNum = cols - 2;
+    int rows = db.size();
+    int cols = db[0].size();
+    int pointNum = cols - 2;
     QVector<QVector<QVector3D>> data;
     QVector<int> hang;
     for (int i = 0; i < rows; ++i)
@@ -114,16 +51,30 @@ void CData::readBuf()
     int colIndx = data[0].size();
     if (Indx(ii, rowIndx, colIndx))
     {
-        QVector<QVector3D> local;
+        QVector<QVector3D> point;//! 顶点数据
+        QVector<QVector3D> normal;
         for (int i = 0; i < rowIndx; ++i)
         {
             for (int j = 0; j < colIndx; ++j)
             {
                 QVector3D dd = data[i][j];
-                local.push_back(dd);
+                point.push_back(dd);
             }
         }
-        emit hasData(local, ii);
+        //! 计算法向量
+        for (int i = 0; i < ii.size(); i += 3)
+        {
+
+           QVector3D d0 = point[ii[i]];
+           QVector3D d1 = point[ii[i + 1]];
+           QVector3D d2 = point[ii[i + 2]];
+
+           QVector3D n = QVector3D::normal((d1 - d0), (d2 - d0));
+           normal.push_back(n);
+           normal.push_back(n);
+           normal.push_back(n);
+        }
+        emit hasData(point, QVector<QVector3D>(), QVector<QVector3D>(), ii);
     }
 
  }
@@ -144,14 +95,14 @@ bool CData::Indx(QVector<unsigned int>& indx, const int hang, const int pointNum
                 //后一行2个点序号
                 unsigned int next_1 = (i + 1) * pointNum + j;
                 unsigned int next_2 = (i + 1) * pointNum + (j + 1);
-                //4个点，2个三角形
+                //4个点，2个三角形--顺时针
                 indx.push_back(pre_1);
                 indx.push_back(pre_2);
                 indx.push_back(next_1);
 
                 indx.push_back(next_1);
-                indx.push_back(next_2);
                 indx.push_back(pre_2);
+                indx.push_back(next_2);
             }
         }
         return true;

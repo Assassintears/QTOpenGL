@@ -6,6 +6,7 @@
 #include <QFont>
 #include <QPen>
 
+//! 基于QPainter画切面
 class Profile : public QWidget
 {
     Q_OBJECT

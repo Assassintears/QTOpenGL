@@ -1,6 +1,6 @@
 ﻿#ifndef MAINWINDOW_H
 #define MAINWINDOW_H
-
+#include <openglwidget.h>
 #include <QMainWindow>
 #include <QPushButton>
 #include <QGroupBox>
@@ -10,13 +10,13 @@
 #include <QTimer>
 #include <QDateTime>
 #include <profile.h>
-#include <openglwidget.h>
 #include <QSqlDatabase>
 #include <QSqlError>
 #include <QDebug>
 #include <QSqlQuery>
 #include <QSqlRecord>
 #include <QLineEdit>
+#include <database.h>
 #include "cdata.h"
 
 #if _MSC_VER >= 1600
@@ -34,9 +34,8 @@ typedef enum
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
-
 public:
-    MainWindow(QWidget *parent = nullptr);
+    MainWindow(QMainWindow *parent = nullptr);
     ~MainWindow();
 
 private:
@@ -67,29 +66,29 @@ private:
     //!自定义控件
     Profile* profile;           //!qt二维绘图控件
 
-    QLabel* timelabel;          //!状态栏时间标签
-    QLabel* currentstatus;      //!当前状态标签
-    QTimer* timer;              //!更新状态栏时间的计时器
-    QTimer* pollData;           //!轮询数据库计数器
+    QLabel* timelabel;          //! 状态栏时间标签
+    QLabel* currentstatus;      //! 当前状态标签
+    QTimer* timer;              //! 更新状态栏时间的计时器
+    QTimer* pollData;           //! 轮询数据库计数器
 
-    GLWidget* openglwidget;     //!OpenGL控件
-    CData cdata;                //!数据类
-
-    QSqlDatabase db;
+    GLWidget* openglwidget;     //! OpenGL控件
+    CData* cdata;               //! 数据类
+    QSqlDatabase db;            //! 数据库
     clientState state;
-
+    DataBase* database;         //! 轮询数据库实时3D数据
+    QThread pullDataBase;       //! 读取数据库数据
+    QThread calcPointAttr;      //! 计算顶点属性
 signals:
-    void dataBase(QVector<QVector<float>> dataBase);
+    void pullonce(QString sql); //! 抓取一次数据库数据
+    void StartStopScanner(QString sql, QString select = "");
 
 private:
-    void createButtons();   //!创建按钮
+    void createButtons();       //! 创建按钮
     void layout();
-    void createStatusBar(); //!创建状态栏
+    void createStatusBar();     //! 创建状态栏
 
 private:
      void  SignalSlots();
-     bool startIPC();//!发送开始命令
-     bool stopIPC();//!发送停止命令
 
 public slots:
     void on_Start_click();
@@ -100,6 +99,7 @@ public slots:
     void pollingDataBase();//!轮询数据库
     void initY();//!初始化Y0
     void initStepY();//!初始化stepY
+    void setStartText(int); //! 设置开始按钮字符
 
 };
 

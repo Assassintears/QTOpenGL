@@ -9,8 +9,15 @@
 #include <QJsonArray>
 #include <QJsonValue>
 #include <fstream>
+#include <QVector3D>
 
-class MainWindow;
+//typedef struct PointAttr
+//{
+//    QVector3D point;
+//    QVector3D normal;
+//    QVector3D color;
+//};
+
 
 class CData : public QObject
 {
@@ -20,32 +27,21 @@ public:
     virtual ~CData();
 
 public:
-    void SignalsSlots();
-
-public:
     float y0 = 0.0f;
     float stepy = 1.0f;
 
 signals:
-    void receive(QJsonDocument& doc);
-    void hasData(QVector<QVector3D> localData, QVector<unsigned int> ind);
+    //! points3D: 模型顶点坐标
+    //! normal：模型法向量
+    //! color：模型颜色
+    void hasData(QVector<QVector3D> points3D, QVector<QVector3D> normal, QVector<QVector3D> color,
+                 QVector<unsigned int> ind);
 
 public slots:
-    void acceptConnection();
-    void onDataProcess(QJsonDocument& doc);
-    void errors(QAbstractSocket::SocketError);
-    void connected();
-    void onDisconnected();
-    void readBuf();
-    void receiveDataFromDB(QVector<QVector<float>> db);//!从数据库接收到数据
-
+    void calcPoint(QVector<QVector<float>> db);//!从数据库接收到数据
 
 private:
     bool Indx(QVector<unsigned int>& indx, const int hang, const int pointNum);
-
-    QTcpServer* server;
-    QTcpSocket* socket;
-    std::ofstream file;
 };
 
 #endif // CDATA_H

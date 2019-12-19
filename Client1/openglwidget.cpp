@@ -1,7 +1,6 @@
 ﻿#include <openglwidget.h>
 #include <QOpenGLShaderProgram>
 #include <QCoreApplication>
-#include <math.h>
 #include <QDateTime>
 #include <QMessageBox>
 #include <QFile>
@@ -10,19 +9,16 @@
 #include <QVector>
 #include <QVector3D>
 #include <QDebug>
-#include <string>
 #include <QTransform>
-#include <QQuaternion>
-#include <QPainter>
-#include <QPen>
-#include <QFont>
 #include <QtMath>
 
 
 GLWidget::GLWidget(QWidget *parent)
     : QOpenGLWidget(parent),
       QOpenGLFunctions_4_5_Core(),
-      m_vbo(QOpenGLBuffer::VertexBuffer)
+      m_vbo(QOpenGLBuffer::VertexBuffer),
+      m_colorvbo(QOpenGLBuffer::VertexBuffer),
+      m_normal(QOpenGLBuffer::VertexBuffer)
 {
     QSurfaceFormat format;
     format.setDepthBufferSize(24);
@@ -30,8 +26,8 @@ GLWidget::GLWidget(QWidget *parent)
     format.setVersion(4, 5);
     format.setProfile(QSurfaceFormat::CoreProfile);
     QSurfaceFormat::setDefaultFormat(format);
-
     setFocusPolicy(Qt::StrongFocus);
+
     count = 0;
     mode = PointCloud;//!默认点云渲染
 
@@ -88,7 +84,8 @@ void GLWidget::initShaders()
 
 }
 
-void GLWidget::updateData(QVector<QVector3D> local, QVector<unsigned int> ii)
+void GLWidget::updateData(QVector<QVector3D> local, QVector<QVector3D> normal, QVector<QVector3D> color,
+                          QVector<unsigned int> ii)
 {
     if (local.empty())
     {
@@ -98,14 +95,19 @@ void GLWidget::updateData(QVector<QVector3D> local, QVector<unsigned int> ii)
     m_vbo.destroy();//释放缓冲区数据
     m_vbo.create();
     m_vbo.bind();
+//    m_normal.bind();
     count = 0;
     QVector<QVector3D> tmp;
+    QVector<QVector3D> norTmp;
     for (int i = 0; i < ii.size(); ++i)
     {
         tmp.push_back(local[ii[i]]);
+//        norTmp.push_back(normal[ii[i]]);
     }
     m_vbo.allocate(tmp.size() * 3 * static_cast<int>(sizeof(float)));
     m_vbo.write(0, tmp.data(), tmp.size() * 3 * static_cast<int>(sizeof(float)));
+//    m_normal.allocate(norTmp.size() * 3 * static_cast<int>(sizeof(float)));
+//    m_normal.write(0, norTmp.data(), norTmp.size() * 3 * static_cast<int>(sizeof(float)));
     count = ii.size();
     update();
 }
@@ -154,6 +156,7 @@ void GLWidget::initializeGL()
     m_vao.create();
     m_vbo.create();
     m_colorvbo.create();
+    m_normal.create();
 
     //! 坐标轴数据
     QVector<QVector3D> out;
@@ -202,6 +205,7 @@ void GLWidget::paintGL()
     m_program->bind();
     modelLoc = m_program->uniformLocation("camera");
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, m_camera.data());
+    m_vao.bind();
     m_vbo.bind();
     glVertexAttribPointer(0, 3, GL_FLOAT, false, 3 * sizeof(float), nullptr);
     glEnableVertexAttribArray(0);
@@ -222,9 +226,8 @@ void GLWidget::paintGL()
     }
     else
     {}
-
-    m_vbo.release();
     m_vao.release();
+    m_vbo.release();
     m_program->release();
 
     //! 文本
@@ -239,7 +242,7 @@ void GLWidget::paintGL()
         {
             QVector3D d3 = points.at(i);
             QVector4D ndc = m_proj * m_camera * m_model * QVector4D(d3, 1.0f);
-            QVector4D cam = m_camera * m_model * QVector4D(d3, 1.0f);
+//            QVector4D cam = m_camera * m_model * QVector4D(d3, 1.0f);
 //            ndc = ndc / cam[2];
             //!计算像素
             int x = static_cast<int>((this->width() * 0.5f - 0.5f) * (ndc[0] + ndc[3]));

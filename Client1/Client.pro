@@ -26,6 +26,7 @@ CONFIG += c++11
 
 SOURCES += \
         cdata.cpp \
+        database.cpp \
         main.cpp \
         mainwindow.cpp \
         openglwidget.cpp \
@@ -33,6 +34,7 @@ SOURCES += \
 
 HEADERS += \
     cdata.h \
+    database.h \
         mainwindow.h \
         openglwidget.h \
         profile.h \

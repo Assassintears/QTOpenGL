@@ -9,6 +9,8 @@
 #include <QMouseEvent>
 #include <QOpenGLTexture>
 #include <QPainter>
+#include <QPen>
+#include <QFont>
 #include <QHash>
 #include <QList>
 #include <QQuaternion>
@@ -37,7 +39,8 @@ public slots:
     void cleanup();
     void paintOpenGL();
     void setRenderMode(RenderMode mode);
-    void updateData(QVector<QVector3D> local, QVector<unsigned int> ii);
+    void updateData(QVector<QVector3D> points3D, QVector<QVector3D> normal, QVector<QVector3D> color,
+                    QVector<unsigned int> ind);
     void rotateRight();
     void rotateLeft();
 
@@ -61,9 +64,9 @@ private:
     void initShaders();
     //生成坐标轴数据
     /***********
-    /* max: x,y,z方向最大值,单位mm
-    /* step: x,y,z方向刻度间距，单位mm
-    /* out: 坐标轴数据，只能用glDrawArrays画图
+    /@ max: x,y,z方向最大值,单位mm
+    /@ step: x,y,z方向刻度间距，单位mm
+    /@ out: 坐标轴数据，只能用glDrawArrays画图
     ***********/
     bool genCoordData(const QVector3D max, const QVector3D step,
                       QVector<QVector3D>& out);
@@ -75,9 +78,10 @@ private:
 
     //!煤场缓冲区句柄
     QOpenGLShaderProgram *m_program;    //!模型着色器
-    QOpenGLVertexArrayObject m_vao;//!VAO用于解释顶点属性，告诉着色器从哪个缓冲区（顶点属性）中取相应的数据
-    QOpenGLBuffer m_vbo;//!array buffer，VBO用于存储顶点属性
-    QOpenGLBuffer m_colorvbo;   //!颜色缓冲区
+    QOpenGLVertexArrayObject m_vao;     //!VAO用于解释顶点属性，告诉着色器从哪个缓冲区（顶点属性）中取相应的数据
+    QOpenGLBuffer m_vbo;                //!array buffer，VBO用于存储顶点属性
+    QOpenGLBuffer m_colorvbo;           //! 颜色缓冲区
+    QOpenGLBuffer m_normal;             //! 法向量缓冲区
     int count;//!煤场图元计数
 
     //!坐标轴缓冲区句柄

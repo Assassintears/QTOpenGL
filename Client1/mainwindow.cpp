@@ -7,29 +7,43 @@
 #include <QMessageBox>
 #include <QString>
 #include <QStatusBar>
+#include <QMetaType>
 
 
-MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent),
-      cdata{}
+MainWindow::MainWindow(QMainWindow *parent)
+    : QMainWindow(parent)
 {
-    //!开始连接数据库
+    //! 注册从元数据
+    qRegisterMetaType<QVector<QVector<float> > > ("origData");
+    qRegisterMetaType<QVector<QVector3D> > ("Points");
+    qRegisterMetaType<QVector<unsigned int> > ("index");
+    //! 建立一个数据库连接
     db = QSqlDatabase::addDatabase("QODBC");
     db.setHostName("192.168.2.136");
     db.setDatabaseName("DB");//!如果是QODBC驱动，此处应该是数据源名称
     db.setUserName("sa");
     db.setPassword("sa");
     db.setPort(1433);
+
+    database = new DataBase(QString("connect"));
+    database->moveToThread(&pullDataBase);
+    pullDataBase.start();
+
+    cdata = new CData;
+    cdata->moveToThread(&calcPointAttr);
+    calcPointAttr.start();
    createButtons();
    layout();
    createStatusBar();
    SignalSlots();
-
 }
 
 MainWindow::~MainWindow()
 {
-
+    pullDataBase.quit();
+    calcPointAttr.quit();
+    pullDataBase.wait();
+    calcPointAttr.wait();
 }
 
 void MainWindow::createButtons()
@@ -204,137 +218,34 @@ void MainWindow::layout()
 
 void MainWindow::SignalSlots()
 {
+    connect(&pullDataBase, &QThread::finished, database, &QObject::deleteLater);
+    connect(&calcPointAttr, &QThread::finished, cdata, &QObject::deleteLater);
     connect(timer, &QTimer::timeout, this, &MainWindow::updateTime);
-    connect(bpatch, &QPushButton::clicked, this, &MainWindow::setPatch);
-    connect(bcloud, &QPushButton::clicked, this, &MainWindow::setPointCloud);
-    connect(bspride, &QPushButton::clicked, this, &MainWindow::setLines);
-    connect(pollData, &QTimer::timeout, this, &MainWindow::pollingDataBase);
-    connect(this, &MainWindow::dataBase, &cdata, &CData::receiveDataFromDB);
-    connect(&cdata, &CData::hasData, openglwidget, &GLWidget::updateData);
+    connect(bpatch, &QPushButton::clicked, this, &MainWindow::setPatch);    //! 设置填充
+    connect(bcloud, &QPushButton::clicked, this, &MainWindow::setPointCloud); //! 设置点云
+    connect(bspride, &QPushButton::clicked, this, &MainWindow::setLines);   //! 设置线框
+    connect(pollData, &QTimer::timeout, this, &MainWindow::pollingDataBase);    //! 读取数据库数据
+    connect(this, &MainWindow::pullonce,
+            database, &DataBase::selectRealDataFromDB, Qt::QueuedConnection);//! 线程读取数据库数据
+    connect(database, &DataBase::dataBase,
+            cdata, &CData::calcPoint, Qt::QueuedConnection);    //! 发送信号给数据类，表示有数据需要处理
+    connect(cdata, &CData::hasData, openglwidget, &GLWidget::updateData);  //! 数据类处理完发送给OpenGL渲染
     connect(edity0, &QLineEdit::editingFinished, this, &MainWindow::initY);
     connect(editstepy, &QLineEdit::editingFinished, this, &MainWindow::initStepY);
     connect(start, &QPushButton::clicked, this, &MainWindow::on_Start_click);
+    connect(this, &MainWindow::StartStopScanner, database, &DataBase::StartStopScanner);
+    connect(database, &DataBase::State, this, &MainWindow::setStartText);
     connect(bright_rotate, &QPushButton::clicked, openglwidget, &GLWidget::rotateRight);
     connect(bleft_rotate, &QPushButton::clicked, openglwidget, &GLWidget::rotateLeft);
-}
-
-bool MainWindow::startIPC()
-{
-    bool res = true;
-
-    if (!db.isOpen())
-    {
-        if (!db.open())
-        {
-            qDebug() << "It's filed to connect DB: " << db.lastError().text() << "\n";
-            return !res;
-        }
-    }
-
-    //!写入指令
-    QSqlQuery query;
-    QString sql = "UPDATE t_Child_operation SET isstate = 1 WHERE operationID = '1'";
-    query.exec(sql);
-    if (!query.isActive())
-    {
-        qDebug() << "an error occured when start client\n";
-        qDebug() << db.lastError().text() << "\n";
-    }
-    else
-    {
-        qDebug() << "Start Client\n";
-        query.clear();
-        db.close();
-        state = START;
-    }
-    return res;
-}
-
-bool MainWindow::stopIPC()
-{
-    bool res = true;
-    if (!db.isOpen())
-    {
-        if (!db.open())
-        {
-            qDebug() << "Can not open DB\n";
-            return !res;
-        }
-    }
-    QSqlQuery query;
-    QString sql = "UPDATE t_Child_operation SET isstate = 0 WHERE operationID = '1'";
-    query.exec(sql);
-    if (!query.isActive())
-    {
-        qDebug() << "an error occured when stop client\n";
-        qDebug() << db.lastError().text() << "\n";
-    }
-    else {
-        qDebug() << "Stop Client\n";
-        query.clear();
-        db.close();
-        state = END;
-    }
-    return res;
 }
 
 void MainWindow::pollingDataBase()
 {
     if (START == state)
     {
-        if (!db.isOpen())
-        {
-            if (!db.open())
-            {
-                qDebug() << "打开数据库失败\n";
-                return;
-            }
-        }
-        QSqlQuery query;
+        //! 这里判断读取哪个表格数据
         QString sql = "select * from T_3D_record";
-        query.exec(sql);
-        if (query.isActive())
-        {
-            //!取结果集
-            QVector<QVector<float>> data;
-            while (query.next())
-            {
-                QVector<float> tmp;
-                QSqlRecord rec = query.record();
-                for (int i = 0; i < rec.count() - 1; ++i)
-                {
-                    QVariant vt = rec.value(i);
-                    if (vt.isNull())
-                    {
-                        break;
-                    }
-                    else
-                    {
-                        tmp.push_back(vt.toFloat());
-                    }
-                }
-                if (1 != tmp.size())
-                {
-                    data.push_back(tmp);
-                }
-                else
-                {
-                    qDebug() << "size = " << tmp.size() << "\n";
-                }
-                rec.clear();
-                tmp.clear();
-            }
-            if (!data.isEmpty())
-            {
-                emit dataBase(data);
-                data.clear();
-            }
-            query.clear();
-        }
-        db.close();
-    }
-    else {
-        qDebug() << "Not Start" << QTime::currentTime() << "\n";
+        emit pullonce(sql);
     }
 }
 
@@ -371,30 +282,52 @@ void MainWindow::setLines()
 void MainWindow::initY()
 {
     QString t = edity0->text();
-    cdata.y0 = t.toFloat();
+    cdata->y0 = t.toFloat();
 }
 
 void MainWindow::initStepY()
 {
     QString t = editstepy->text();
-    cdata.stepy = t.toFloat();
+    cdata->stepy = t.toFloat();
 }
 
 void MainWindow::on_Start_click()
 {
     QString tx = start->text();
+    QString start = "UPDATE t_Child_operation SET isstate = 1 WHERE operationID = '1'";
+    QString stop = "UPDATE t_Child_operation SET isstate = 0 WHERE operationID = '1'";
+    QString select = "SELECT isstate FROM t_Child_operation WHERE operationID = '1'"; //! 开始测量之前，先查看当前煤场是否已经在测量
     if ("Start" == tx)
     {
-        if (startIPC())
-        {
-            start->setText("End");
-        }
+        emit StartStopScanner(start, select);
+
     }
     else if ("End" == tx)
     {
-        if (stopIPC())
+        emit StartStopScanner(stop);
+    }
+    else {
+        ;
+    }
+}
+
+void MainWindow::setStartText(int state)
+{
+    QString tx = start->text();
+    if (0 == state)
+    {
+        if ("Start" == tx)
+        {
+            start->setText("End");
+            this->state = START;
+        }
+        else if ("End" == tx)
         {
             start->setText("Start");
+            this->state = END;
+        }
+        else {
+            ;
         }
     }
 }
