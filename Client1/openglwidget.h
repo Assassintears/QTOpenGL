@@ -26,6 +26,25 @@ typedef enum RenderMode
     NotRender   //!不渲染
 };
 
+//! 定义材质
+typedef struct Material
+{
+    QVector3D ambient;  //! 背景光，环境光
+    QVector3D diffuse;  //! 漫反射
+    QVector3D specular; //! 镜面反
+    float shinines;     //! 镜面反射强度
+};
+
+//! 定义光源
+typedef struct Light
+{
+//    QVector3D postion;  //! 点光源位置
+    QVector3D direction;//! 平行光方向
+    QVector3D ambient;  //! 背景光，环境光
+    QVector3D diffuse;  //! 漫反射
+    QVector3D specular; //! 镜面反
+};
+
 
 class GLWidget : public QOpenGLWidget, protected QOpenGLFunctions_4_5_Core
 {
@@ -39,8 +58,7 @@ public slots:
     void cleanup();
     void paintOpenGL();
     void setRenderMode(RenderMode mode);
-    void updateData(QVector<QVector3D> points3D, QVector<QVector3D> normal, QVector<QVector3D> color,
-                    QVector<unsigned int> ind);
+    void updateData(QVector<QVector3D> points3D, QVector<QVector3D> normal, QVector<QVector3D> color);
     void rotateRight();
     void rotateLeft();
 
@@ -83,6 +101,11 @@ private:
     QOpenGLBuffer m_colorvbo;           //! 颜色缓冲区
     QOpenGLBuffer m_normal;             //! 法向量缓冲区
     int count;//!煤场图元计数
+
+    //! 材质
+    Material material;
+    //! 光源
+    Light light;
 
     //!坐标轴缓冲区句柄
     int indexSize;//!坐标系图元计数

@@ -12,97 +12,89 @@ CData::~CData()
 }
 
 
-
- void CData::calcPoint(QVector<QVector<float>> db)
- {
-     if (db.empty())
-     {
-         qDebug() << "No data" << "\n";
-         return;
-     }
-    int rows = db.size();
-    int cols = db[0].size();
-    int pointNum = cols - 2;
-    QVector<QVector<QVector3D>> data;
-    QVector<int> hang;
-    for (int i = 0; i < rows; ++i)
-    {
-        float x = db[i][0];
-        QVector<QVector3D> tmp;//!当前行数据
-        for (int j = 1; j < db[i].size() - 2; ++j)
-        {
-            float y = y0 + j * stepy;
-            tmp.push_back(QVector3D(x, y, db[i][j]));
-        }
-        if (2 != db[i].size() - pointNum)
-        {
-            qDebug() << "--" << i << "  size = " << db[i].size() << "\n";
-        }
-        data.push_back(tmp);
-    }
-    //!生成索引,重组数据
-    QVector<unsigned int> ii;
-    if (data.empty())
+void CData::calcPoint(QVector<QVector<float>> db)
+{
+    if (db.empty())
     {
         qDebug() << "No data" << "\n";
         return;
     }
-    int rowIndx = data.size();
-    int colIndx = data[0].size();
-    if (Indx(ii, rowIndx, colIndx))
-    {
-        QVector<QVector3D> point;//! 顶点数据
-        QVector<QVector3D> normal;
-        for (int i = 0; i < rowIndx; ++i)
-        {
-            for (int j = 0; j < colIndx; ++j)
-            {
-                QVector3D dd = data[i][j];
-                point.push_back(dd);
-            }
-        }
-        //! 计算法向量
-        for (int i = 0; i < ii.size(); i += 3)
-        {
+   int rows = db.size();
+   int cols = db[0].size();
+   int pointNum = cols - 2;
+   QVector<QVector<QVector3D>> data;
+   QVector<int> hang;
+   for (int i = 0; i < rows; ++i)
+   {
+       float x = db[i][0];
+       QVector<QVector3D> tmp;//!当前行数据
+       for (int j = 1; j < db[i].size() - 2; ++j)
+       {
+           float y = y0 + j * stepy;
+           tmp.push_back(QVector3D(x, y, db[i][j]));
+       }
+       if (2 != db[i].size() - pointNum)
+       {
+           qDebug() << "--" << i << "  size = " << db[i].size() << "\n";
+       }
+       data.push_back(tmp);
+   }
+   //! 重组数据
+   QVector<unsigned int> ii;
+   if (data.empty())
+   {
+       qDebug() << "No data" << "\n";
+       return;
+   }
+   QVector<QVector3D> point;//! 顶点数据
+   QVector<QVector3D> normal;
+   QVector<QVector3D> color;
+   reshape(data, point, normal, color);
+   emit hasData(point, normal, QVector<QVector3D>());
+}
 
-           QVector3D d0 = point[ii[i]];
-           QVector3D d1 = point[ii[i + 1]];
-           QVector3D d2 = point[ii[i + 2]];
-
-           QVector3D n = QVector3D::normal((d1 - d0), (d2 - d0));
-           normal.push_back(n);
-           normal.push_back(n);
-           normal.push_back(n);
-        }
-        emit hasData(point, QVector<QVector3D>(), QVector<QVector3D>(), ii);
-    }
-
- }
-
-
-bool CData::Indx(QVector<unsigned int>& indx, const int hang, const int pointNum)
+bool CData::reshape(const QVector<QVector<QVector3D>>& data,
+             QVector<QVector3D>& point3D, QVector<QVector3D>& normal,
+             QVector<QVector3D>& color)
 {
-    int it = hang;
-    if (it >= 2)//!至少有2行数据
+    if (!data.isEmpty())
     {
-        for (int i = 0; i < it - 1; ++i)
+        int rows = data.size();
+        int cols = data[0].size();
+        if (1 == rows)
         {
-            for (int j = 0; j < pointNum - 1; ++j)
+            point3D = data[0];
+            return true;
+        }
+        else
+        {
+            for (int i = 0; i < rows - 1; ++i)
             {
-                //当前行2个点序号
-                unsigned int pre_1 = i * pointNum + j;
-                unsigned int pre_2 = i * pointNum + (j + 1);
-                //后一行2个点序号
-                unsigned int next_1 = (i + 1) * pointNum + j;
-                unsigned int next_2 = (i + 1) * pointNum + (j + 1);
-                //4个点，2个三角形--顺时针
-                indx.push_back(pre_1);
-                indx.push_back(pre_2);
-                indx.push_back(next_1);
-
-                indx.push_back(next_1);
-                indx.push_back(pre_2);
-                indx.push_back(next_2);
+                for (int j = 0; j < cols - 1; ++j)
+                {
+                    //! 当前行2个点
+                    QVector3D cur1 = data[i][j];
+                    QVector3D cur2 = data[i][j + 1];
+                    //! 下一行2个点
+                    QVector3D next1 = data[i + 1][j];
+                    QVector3D next2 = data[i + 1][j + 1];
+                    //! 前一个三角形法向量
+                    QVector3D n1 = QVector3D::normal((cur2 - cur1), (next1 - cur1));
+                    //! 后一个三角形法向量
+                    QVector3D n2 = QVector3D::normal((cur2 - next1), (next2 - next1));
+                    point3D.push_back(cur1);
+                    point3D.push_back(cur2);
+                    point3D.push_back(next1);
+                    point3D.push_back(next1);
+                    point3D.push_back(cur2);
+                    point3D.push_back(next2);
+                    normal.push_back(n1);
+                    normal.push_back(n1);
+                    normal.push_back(n1);
+                    normal.push_back(n2);
+                    normal.push_back(n2);
+                    normal.push_back(n2);
+                }
             }
         }
         return true;

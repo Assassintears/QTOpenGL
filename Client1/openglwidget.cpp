@@ -43,6 +43,17 @@ GLWidget::GLWidget(QWidget *parent)
     PosX = 0.0f;//!
     PosY = 0.0f;    //! y位置
     PosZ = -500.0f;//!
+
+    material.ambient = QVector3D(0.02f, 0.02f, 0.02f);
+    material.diffuse = QVector3D(0.01f, 0.01f, 0.01f);
+    material.specular = QVector3D(0.5f, 0.5f, 0.5f);
+    material.shinines = 32.0f;
+
+    light.ambient = QVector3D(0.5f, 0.5f, 0.5f);
+    light.diffuse = QVector3D(0.2f, 0.2f, 0.2f);
+    light.specular = QVector3D(1.0f, 1.0f, 1.0f);
+//    light.postion = QVector3D(200.0f, 100.0f, 100.0f);//! 相机坐标系下的光源位置
+    light.direction = QVector3D(-1.0f, -1.0f, 0.0f);
 }
 
 GLWidget::~GLWidget()
@@ -84,35 +95,24 @@ void GLWidget::initShaders()
 
 }
 
-void GLWidget::updateData(QVector<QVector3D> local, QVector<QVector3D> normal, QVector<QVector3D> color,
-                          QVector<unsigned int> ii)
+void GLWidget::updateData(QVector<QVector3D> local, QVector<QVector3D> normal, QVector<QVector3D> color)
 {
     if (local.empty())
     {
         qDebug() << "OpenGL未接收到数据\n";
         return;
     }
-    m_vbo.destroy();//释放缓冲区数据
-    m_vbo.create();
+    m_vao.bind();
     m_vbo.bind();
-//    m_normal.bind();
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
     count = 0;
-    QVector<QVector3D> tmp;
-    QVector<QVector3D> norTmp;
-    for (int i = 0; i < ii.size(); ++i)
-    {
-        tmp.push_back(local[ii[i]]);
-//        norTmp.push_back(normal[ii[i]]);
-    }
-    m_vbo.allocate(tmp.size() * 3 * static_cast<int>(sizeof(float)));
-    m_vbo.write(0, tmp.data(), tmp.size() * 3 * static_cast<int>(sizeof(float)));
-//    m_normal.allocate(norTmp.size() * 3 * static_cast<int>(sizeof(float)));
-//    m_normal.write(0, norTmp.data(), norTmp.size() * 3 * static_cast<int>(sizeof(float)));
-    count = ii.size();
+    m_vbo.allocate(2 * local.size() * 3 * static_cast<int>(sizeof(float)));
+    m_vbo.write(0, local.data(), local.size() * 3 * static_cast<int>(sizeof(float)));
+    m_vbo.write(local.size() * 3 * static_cast<int>(sizeof(float)), normal.data(),
+                normal.size() * 3 * static_cast<int>(sizeof(float)));
+    count = local.size();
     update();
 }
-
-
 
 void GLWidget::cleanup()
 {
@@ -205,24 +205,37 @@ void GLWidget::paintGL()
     m_program->bind();
     modelLoc = m_program->uniformLocation("camera");
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, m_camera.data());
+
+    glUniform3fv(m_program->uniformLocation("material.ambient"), 1, &(material.ambient[0]));
+    glUniform3fv(m_program->uniformLocation("material.diffuse"), 1, &(material.diffuse[0]));
+    glUniform3fv(m_program->uniformLocation("material.specular"), 1, &(material.specular[0]));
+    glUniform1f(m_program->uniformLocation("material.shininess"), material.shinines);
+
+//    QVector3D camPos = (m_camera * QVector4D(light.postion, 1.0f)).toVector3D();
+    glUniform3fv(m_program->uniformLocation("light.ambient"), 1, &(light.ambient[0]));
+    glUniform3fv(m_program->uniformLocation("light.diffuse"), 1, &(light.diffuse[0]));
+    glUniform3fv(m_program->uniformLocation("light.specular"), 1, &(light.specular[0]));
+    glUniform3fv(m_program->uniformLocation("light.direction"), 1, &(light.direction[0]));
     m_vao.bind();
     m_vbo.bind();
-    glVertexAttribPointer(0, 3, GL_FLOAT, false, 3 * sizeof(float), nullptr);
     glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, false, 3 * sizeof(float), nullptr);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, false, 3 * sizeof(float), (void*)(count * 3 * sizeof(float)));
     if (Patch == mode)
     {
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);//!这种方式有一点缺陷--会改变所有三角形图元的渲染模式，不管三角形在此之前已被渲染还是在此之后渲染
+//        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);//!这种方式有一点缺陷--会改变所有三角形图元的渲染模式，不管三角形在此之前已被渲染还是在此之后渲染
         glDrawArrays(GL_TRIANGLES, 0, count);
     }
     else if (PointCloud == mode)
     {
-        glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
-        glDrawArrays(GL_TRIANGLES, 0, count);
+//        glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
+        glDrawArrays(GL_POINTS, 0, count);
     }
     else if(Lines == mode)
     {
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        glDrawArrays(GL_TRIANGLES, 0, count);
+//        glPolygonMode(GL_FRONT, GL_LINE);
+        glDrawArrays(GL_LINES, 0, count);
     }
     else
     {}
@@ -231,7 +244,7 @@ void GLWidget::paintGL()
     m_program->release();
 
     //! 文本
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+//    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     QPen pen;
     pen.setColor(Qt::red);
     painter.setPen(pen);
@@ -306,7 +319,7 @@ void GLWidget::mouseMoveEvent(QMouseEvent *event)
 
     if (event->buttons() & Qt::LeftButton)
     {
-        m_camera.rotate(dy, QVector3D(0.0f, 1.0f, 0.0f));
+        m_camera.rotate(-dy, QVector3D(1.0f, 0.0f, 0.0f));
         m_camera.rotate(dx, QVector3D(0.0f, 0.0f, 1.0f));
     }
     if (event->buttons() & Qt::RightButton)

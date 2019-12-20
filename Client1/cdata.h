@@ -34,14 +34,15 @@ signals:
     //! points3D: 模型顶点坐标
     //! normal：模型法向量
     //! color：模型颜色
-    void hasData(QVector<QVector3D> points3D, QVector<QVector3D> normal, QVector<QVector3D> color,
-                 QVector<unsigned int> ind);
+    void hasData(QVector<QVector3D> points3D, QVector<QVector3D> normal, QVector<QVector3D> color);
 
 public slots:
     void calcPoint(QVector<QVector<float>> db);//!从数据库接收到数据
 
 private:
-    bool Indx(QVector<unsigned int>& indx, const int hang, const int pointNum);
+    bool reshape(const QVector<QVector<QVector3D>>& data,
+                 QVector<QVector3D>& point3D, QVector<QVector3D>& normal,
+                 QVector<QVector3D>& color);
 };
 
 #endif // CDATA_H
