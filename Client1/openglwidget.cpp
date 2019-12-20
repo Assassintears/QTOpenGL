@@ -52,8 +52,8 @@ GLWidget::GLWidget(QWidget *parent)
     light.ambient = QVector3D(0.5f, 0.5f, 0.5f);
     light.diffuse = QVector3D(0.2f, 0.2f, 0.2f);
     light.specular = QVector3D(1.0f, 1.0f, 1.0f);
-//    light.postion = QVector3D(200.0f, 100.0f, 100.0f);//! 相机坐标系下的光源位置
-    light.direction = QVector3D(-1.0f, -1.0f, 0.0f);
+    light.postion = QVector3D(25.0f, 150.0f, 100.0f);//! 相机坐标系下的光源位置
+//    light.direction = QVector3D(1.0f, 1.0f, -100.0f);
 }
 
 GLWidget::~GLWidget()
@@ -183,86 +183,16 @@ void GLWidget::paintGL()
     glEnable(GL_LINE_SMOOTH);
     glEnable(GL_PROGRAM_POINT_SIZE);
 
-    //!OpenGL Draw
+    //! 开始渲染
     QPainter painter(this);
     painter.beginNativePainting();
-
     //! 画坐标轴
-    coordPro->bind();
-    int modelLoc = coordPro->uniformLocation("camera");
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, m_camera.data());
-    VAO.bind();
-    VBO.bind();
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
-    glLineWidth(2.0f);
-    glDrawArrays(GL_LINES, 0, indexSize);
-    VBO.release();
-    VAO.release();
-    coordPro->release();
-
+    drawCoord();
     //!画煤场
-    m_program->bind();
-    modelLoc = m_program->uniformLocation("camera");
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, m_camera.data());
-
-    glUniform3fv(m_program->uniformLocation("material.ambient"), 1, &(material.ambient[0]));
-    glUniform3fv(m_program->uniformLocation("material.diffuse"), 1, &(material.diffuse[0]));
-    glUniform3fv(m_program->uniformLocation("material.specular"), 1, &(material.specular[0]));
-    glUniform1f(m_program->uniformLocation("material.shininess"), material.shinines);
-
-//    QVector3D camPos = (m_camera * QVector4D(light.postion, 1.0f)).toVector3D();
-    glUniform3fv(m_program->uniformLocation("light.ambient"), 1, &(light.ambient[0]));
-    glUniform3fv(m_program->uniformLocation("light.diffuse"), 1, &(light.diffuse[0]));
-    glUniform3fv(m_program->uniformLocation("light.specular"), 1, &(light.specular[0]));
-    glUniform3fv(m_program->uniformLocation("light.direction"), 1, &(light.direction[0]));
-    m_vao.bind();
-    m_vbo.bind();
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, false, 3 * sizeof(float), nullptr);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, false, 3 * sizeof(float), (void*)(count * 3 * sizeof(float)));
-    if (Patch == mode)
-    {
-//        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);//!这种方式有一点缺陷--会改变所有三角形图元的渲染模式，不管三角形在此之前已被渲染还是在此之后渲染
-        glDrawArrays(GL_TRIANGLES, 0, count);
-    }
-    else if (PointCloud == mode)
-    {
-//        glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
-        glDrawArrays(GL_POINTS, 0, count);
-    }
-    else if(Lines == mode)
-    {
-//        glPolygonMode(GL_FRONT, GL_LINE);
-        glDrawArrays(GL_LINES, 0, count);
-    }
-    else
-    {}
-    m_vao.release();
-    m_vbo.release();
-    m_program->release();
-
+    drawCoal();
     //! 文本
 //    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    QPen pen;
-    pen.setColor(Qt::red);
-    painter.setPen(pen);
-    for (QHash<QString, QList<QVector3D>>::iterator it = labels.begin(); it != labels.end(); ++it)
-    {
-        QList<QVector3D> points = it.value();
-        for (int i = 0; i < points.size(); ++i)
-        {
-            QVector3D d3 = points.at(i);
-            QVector4D ndc = m_proj * m_camera * m_model * QVector4D(d3, 1.0f);
-//            QVector4D cam = m_camera * m_model * QVector4D(d3, 1.0f);
-//            ndc = ndc / cam[2];
-            //!计算像素
-            int x = static_cast<int>((this->width() * 0.5f - 0.5f) * (ndc[0] + ndc[3]));
-            int y = static_cast<int>((this->height() * 0.5f - 0.5f) * (ndc[3] - ndc[1]));
-            painter.drawText(x, y, it.key());
-        }
-    }
+    drawText(painter);
     painter.endNativePainting();
 }
 
@@ -319,7 +249,7 @@ void GLWidget::mouseMoveEvent(QMouseEvent *event)
 
     if (event->buttons() & Qt::LeftButton)
     {
-        m_camera.rotate(-dy, QVector3D(1.0f, 0.0f, 0.0f));
+        m_camera.rotate(dy, QVector3D(0.0f, 1.0f, 0.0f));
         m_camera.rotate(dx, QVector3D(0.0f, 0.0f, 1.0f));
     }
     if (event->buttons() & Qt::RightButton)
@@ -447,4 +377,93 @@ void GLWidget::rotateLeft()
 {
     m_camera.rotate(-10, QVector3D(0.0f, 0.0f, 1.0f));
     update();
+}
+
+void GLWidget::drawCoal()
+{
+    m_program->bind();
+    glUniformMatrix4fv(m_program->uniformLocation("camera"),
+                       1, GL_FALSE, m_camera.data());
+
+    glUniform3fv(m_program->uniformLocation("material.ambient"), 1, &(material.ambient[0]));
+    glUniform3fv(m_program->uniformLocation("material.diffuse"), 1, &(material.diffuse[0]));
+    glUniform3fv(m_program->uniformLocation("material.specular"), 1, &(material.specular[0]));
+    glUniform1f(m_program->uniformLocation("material.shininess"), material.shinines);
+
+    QVector3D lightDirection = (m_camera * QVector4D(light.postion, 1.0f)).toVector3D();
+    glUniform3fv(m_program->uniformLocation("light.ambient"), 1, &(light.ambient[0]));
+    glUniform3fv(m_program->uniformLocation("light.diffuse"), 1, &(light.diffuse[0]));
+    glUniform3fv(m_program->uniformLocation("light.specular"), 1, &(light.specular[0]));
+    glUniform3fv(m_program->uniformLocation("light.position"), 1, &(lightDirection[0]));
+//    glUniform3fv(m_program->uniformLocation("light.direction"), 1, &(lightDirection[0]));
+    m_vao.bind();
+    m_vbo.bind();
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, false, 3 * sizeof(float), nullptr);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, false, 3 * sizeof(float), (void*)(count * 3 * sizeof(float)));
+    if (Patch == mode)
+    {
+//        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);//!这种方式有一点缺陷--会改变所有三角形图元的渲染模式，不管三角形在此之前已被渲染还是在此之后渲染
+        glDrawArrays(GL_TRIANGLES, 0, count);
+    }
+    else if (PointCloud == mode)
+    {
+//        glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
+        glDrawArrays(GL_POINTS, 0, count);
+    }
+    else if(Lines == mode)
+    {
+//        glPolygonMode(GL_FRONT, GL_LINE);
+        glDrawArrays(GL_LINES, 0, count);
+    }
+    else
+    {}
+    m_vao.release();
+    m_vbo.release();
+    m_program->release();
+}
+
+void GLWidget::drawCoord()
+{
+    //! 画坐标轴
+    coordPro->bind();
+    int modelLoc = coordPro->uniformLocation("camera");
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, m_camera.data());
+    VAO.bind();
+    VBO.bind();
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
+    glLineWidth(2.0f);
+    glDrawArrays(GL_LINES, 0, indexSize);
+    VBO.release();
+    VAO.release();
+    coordPro->release();
+}
+
+void GLWidget::drawText(QPainter& pt)
+{
+    QPen pen;
+    pen.setColor(Qt::red);
+    pt.setPen(pen);
+    for (QHash<QString, QList<QVector3D>>::iterator it = labels.begin(); it != labels.end(); ++it)
+    {
+        QList<QVector3D> points = it.value();
+        for (int i = 0; i < points.size(); ++i)
+        {
+            QVector3D d3 = points.at(i);
+            QVector4D ndc = m_proj * m_camera * m_model * QVector4D(d3, 1.0f);
+//            QVector4D cam = m_camera * m_model * QVector4D(d3, 1.0f);
+//            ndc = ndc / cam[2];
+            //!计算像素
+            int x = static_cast<int>((this->width() * 0.5f - 0.5f) * (ndc[0] + ndc[3]));
+            int y = static_cast<int>((this->height() * 0.5f - 0.5f) * (ndc[3] - ndc[1]));
+            pt.drawText(x, y, it.key());
+        }
+    }
+    //! 画出光源
+    QVector4D ndc = m_proj * m_camera * QVector4D(light.postion, 1.0f);
+    int x = static_cast<int>((this->width() * 0.5f - 0.5f) * (ndc[0] + ndc[3]));
+    int y = static_cast<int>((this->height() * 0.5f - 0.5f) * (ndc[3] - ndc[1]));
+    pt.drawText(x, y, "O");
 }

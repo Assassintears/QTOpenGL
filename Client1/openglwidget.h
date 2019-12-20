@@ -38,8 +38,8 @@ typedef struct Material
 //! 定义光源
 typedef struct Light
 {
-//    QVector3D postion;  //! 点光源位置
-    QVector3D direction;//! 平行光方向
+    QVector3D postion;  //! 点光源位置
+//    QVector3D direction;//! 平行光方向
     QVector3D ambient;  //! 背景光，环境光
     QVector3D diffuse;  //! 漫反射
     QVector3D specular; //! 镜面反
@@ -88,6 +88,10 @@ private:
     ***********/
     bool genCoordData(const QVector3D max, const QVector3D step,
                       QVector<QVector3D>& out);
+
+    void drawCoal();  //! 渲染煤场
+    void drawCoord(); //! 渲染坐标轴
+    void drawText(QPainter& pt);  //! 渲染文本
 
     RenderMode mode;//!渲染模式
 

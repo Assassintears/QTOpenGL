@@ -87,6 +87,7 @@ void DataBase::StartStopScanner(const QString& sql, const QString& select)
         query.exec(select);
         if (query.isActive())
         {
+//            query.next();//! 调试用，实际需要取消注释，避免扫描仪在工作过程中再次开始
             QSqlRecord rec = query.record();
             QVariant vt = rec.value(0);
             if (0 != vt.toInt())
