@@ -128,7 +128,9 @@ void GLWidget::initializeGL()
 {
     initializeOpenGLFunctions();//创建OpenGL上下文环境，初始化OpenGL
     connect(context(), &QOpenGLContext::aboutToBeDestroyed, this, &GLWidget::cleanup);//最好有这句话
+//    const GLfloat color[] = { 0.2f, 0.3f, 0.3f, 1.0f };
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+//    glClearBufferfv(GL_COLOR, 0, color);
     initShaders();
 
     //!创建uniform缓冲区
@@ -404,17 +406,17 @@ void GLWidget::drawCoal()
     glVertexAttribPointer(1, 3, GL_FLOAT, false, 3 * sizeof(float), (void*)(count * 3 * sizeof(float)));
     if (Patch == mode)
     {
-//        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);//!这种方式有一点缺陷--会改变所有三角形图元的渲染模式，不管三角形在此之前已被渲染还是在此之后渲染
+//        glPolygonMode(GL_FRONT, GL_FILL);//!这种方式有一点缺陷--会改变所有三角形图元的渲染模式，不管三角形在此之前已被渲染还是在此之后渲染
         glDrawArrays(GL_TRIANGLES, 0, count);
     }
     else if (PointCloud == mode)
     {
-//        glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
+//        glPolygonMode(GL_FRONT_FACE, GL_POINT);
         glDrawArrays(GL_POINTS, 0, count);
     }
     else if(Lines == mode)
     {
-//        glPolygonMode(GL_FRONT, GL_LINE);
+//        glPolygonMode(GL_FRONT, GL_LINES);
         glDrawArrays(GL_LINES, 0, count);
     }
     else

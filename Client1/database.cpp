@@ -1,4 +1,6 @@
 #include <database.h>
+#include <QThread>
+#include <QTime>
 
 DataBase::DataBase(const QString& connectName)
     :QObject (nullptr)
@@ -17,6 +19,8 @@ DataBase::~DataBase()
 
 void DataBase::selectRealDataFromDB(const QString& sql)
 {
+    qDebug() << "读取数据库线程 " << QThread::currentThread() << "\n";
+    qDebug() << "开始结束时间 " << QTime::currentTime() << "   \n" << "数据采集次数 " << k++ << "\n";
     QMutexLocker locker(&m_mutex);
     if (!m_dataBase.isOpen())
     {
@@ -72,6 +76,8 @@ void DataBase::selectRealDataFromDB(const QString& sql)
 void DataBase::StartStopScanner(const QString& sql, const QString& select)
 {
     QMutexLocker locker(&m_mutex);
+    qDebug() << "读取数据库时间 " << QTime::currentTime() << "\n";
+    qDebug() << "开始结束 " << QThread::currentThread() << "\n";
     if (!m_dataBase.isOpen())
     {
         if (!m_dataBase.open())
@@ -117,10 +123,14 @@ void DataBase::StartStopScanner(const QString& sql, const QString& select)
     if (query.isActive())
     {
         emit State(0);
+        query.clear();
+        m_dataBase.close();
         return;
     }
     else {
         emit State(3);
+        query.clear();
+        m_dataBase.close();
         return;
     }
 }

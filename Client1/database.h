@@ -31,6 +31,7 @@ public slots:
 private:
     QSqlDatabase m_dataBase;
     QMutex m_mutex;
+    int k = 0;
 };
 
 

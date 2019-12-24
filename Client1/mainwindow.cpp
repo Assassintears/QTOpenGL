@@ -134,8 +134,8 @@ void MainWindow::createButtons()
     control->setLayout(contral_main);
 
     deit = new QGroupBox(tr("edit"));
-    y0 = new QLabel(tr("Y0"));
-    stepy = new QLabel(tr("stepY"));
+    y0 = new QLabel(tr("Y0/cm"));
+    stepy = new QLabel(tr("stepY/cm"));
     edity0 = new QLineEdit;
     editstepy = new QLineEdit;
     edity0->setValidator(new QRegExpValidator(QRegExp("[0-9]+\\.[0-9]+$")));
@@ -226,9 +226,8 @@ void MainWindow::SignalSlots()
     connect(bspride, &QPushButton::clicked, this, &MainWindow::setLines);   //! 设置线框
     connect(pollData, &QTimer::timeout, this, &MainWindow::pollingDataBase);    //! 读取数据库数据
     connect(this, &MainWindow::pullonce,
-            database, &DataBase::selectRealDataFromDB, Qt::QueuedConnection);//! 线程读取数据库数据
-    connect(database, &DataBase::dataBase,
-            cdata, &CData::calcPoint, Qt::QueuedConnection);    //! 发送信号给数据类，表示有数据需要处理
+            database, &DataBase::selectRealDataFromDB);//! 线程读取数据库数据
+    connect(database, &DataBase::dataBase, cdata, &CData::calcPoint);    //! 发送信号给数据类，表示有数据需要处理
     connect(cdata, &CData::hasData, openglwidget, &GLWidget::updateData);  //! 数据类处理完发送给OpenGL渲染
     connect(edity0, &QLineEdit::editingFinished, this, &MainWindow::initY);
     connect(editstepy, &QLineEdit::editingFinished, this, &MainWindow::initStepY);
@@ -241,6 +240,7 @@ void MainWindow::SignalSlots()
 
 void MainWindow::pollingDataBase()
 {
+    qDebug() << "主线程：" << QThread::currentThread() << "\n";
     if (START == state)
     {
         //! 这里判断读取哪个表格数据
@@ -313,6 +313,7 @@ void MainWindow::on_Start_click()
 
 void MainWindow::setStartText(int state)
 {
+    qDebug() << "返回的状态值：" << state << "\n";
     QString tx = start->text();
     if (0 == state)
     {

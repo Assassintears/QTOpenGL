@@ -27,8 +27,8 @@ public:
     virtual ~CData();
 
 public:
-    float y0 = 0.0f;
-    float stepy = 1.0f;
+    float y0 = 0.0f;    //! 单位：cm
+    float stepy = 20.0f;//! 单位：cm
 
 signals:
     //! points3D: 模型顶点坐标

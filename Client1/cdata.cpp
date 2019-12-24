@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <QFile>
 #include <QTextStream>
+#include <QThread>
 
 CData::CData()
 {
@@ -14,6 +15,7 @@ CData::~CData()
 
 void CData::calcPoint(QVector<QVector<float>> db)
 {
+    qDebug() << "数据处理线程: " << QThread::currentThread() << "\n";
     if (db.empty())
     {
         qDebug() << "No data" << "\n";
@@ -26,12 +28,13 @@ void CData::calcPoint(QVector<QVector<float>> db)
    QVector<int> hang;
    for (int i = 0; i < rows; ++i)
    {
-       float x = db[i][0];
+       float x = db[i][0] / 1000.0f;
        QVector<QVector3D> tmp;//!当前行数据
        for (int j = 1; j < db[i].size() - 2; ++j)
        {
-           float y = y0 + j * stepy;
-           tmp.push_back(QVector3D(x, y, db[i][j]));
+           float y = (y0 + j * stepy) / 100.0f; //! cm转化为m
+           float z = db[i][j] / 1000.0f;        //! mm转化为m
+           tmp.push_back(QVector3D(x, y, z));
        }
        if (2 != db[i].size() - pointNum)
        {
