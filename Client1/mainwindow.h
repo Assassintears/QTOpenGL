@@ -73,7 +73,8 @@ private:
 
     GLWidget* openglwidget;     //! OpenGL控件
     CData* cdata;               //! 数据类
-    QSqlDatabase db;            //! 数据库
+    bool m_bIsConnected;        //! 数据库是否连接
+//    QSqlDatabase db;            //! 数据库
     clientState state;
     DataBase* database;         //! 轮询数据库实时3D数据
     QThread pullDataBase;       //! 读取数据库数据
@@ -81,6 +82,7 @@ private:
 signals:
     void pullonce(QString sql); //! 抓取一次数据库数据
     void StartStopScanner(QString sql, QString select = "");
+    void reconnectDB();         //! 重连数据库
 
 private:
     void createButtons();       //! 创建按钮
@@ -100,7 +102,6 @@ public slots:
     void initY();//!初始化Y0
     void initStepY();//!初始化stepY
     void setStartText(int); //! 设置开始按钮字符
-
 };
 
 #endif // MAINWINDOW_H

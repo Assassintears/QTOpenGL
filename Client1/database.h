@@ -21,17 +21,22 @@ public:
     virtual ~DataBase();
 
 signals:
-    void dataBase(QVector<QVector<float>> data);//! 对外发送表格中的数据
-    //! 开始测量状态，0：正常打开，1：该每场已经在测量， 2：打开数据库失败，3：指令无效
+    void dataBase(QVector<QVector<float>> data);                        //! 对外发送表格中的数据
+    //! 开始测量状态，0：正常，1：该每场已经在测量， 2：数据库断开，3：指令无效, 4:数据库重连成功
     void State(int);
 
 public slots:
-    void selectRealDataFromDB(const QString& sql);//! 从数据库读取数据
-    void StartStopScanner(const QString& sql, const QString& select);
+    void selectRealDataFromDB(const QString& sql);                      //! 从数据库读取数据
+    void StartStopScanner(const QString& sql, const QString& select);   //! 开始结束扫描
+    void reconnectDB();                                                 //! 数据库断开重连
 private:
     QSqlDatabase m_dataBase;
     QMutex m_mutex;
-    int k = 0;
+    QString m_connectName;
+
+public:
+    bool m_stop;
+
 };
 
 

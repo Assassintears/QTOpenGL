@@ -424,7 +424,6 @@ void GLWidget::rotateRight()
     m_camera.setRow(0, QVector4D(cz*cy, -cy*sz, sy, PosX));
     m_camera.setRow(1, QVector4D(sx*sy*cz+cx*sz, -sx*sy*sz+cx*cz, -sx*cy, PosY));
     m_camera.setRow(2, QVector4D(-cx*sy*cz+sx*sz, cx*sy*sz+sx*cz, cx*cy, PosZ));
-    qDebug() << "右旋\n" << m_camera << "\n";
     update();
 }
 void GLWidget::rotateLeft()

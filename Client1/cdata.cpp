@@ -15,7 +15,6 @@ CData::~CData()
 
 void CData::calcPoint(QVector<QVector<float>> db)
 {
-//    qDebug() << "数据处理线程: " << QThread::currentThread() << "\n";
     if (db.empty())
     {
         qDebug() << "No data" << "\n";
@@ -40,7 +39,10 @@ void CData::calcPoint(QVector<QVector<float>> db)
        {
            qDebug() << "--" << i << "  size = " << db[i].size() << "\n";
        }
-       data.push_back(tmp);
+//       else {
+           data.push_back(tmp);
+//       }
+
    }
    //! 重组数据
    QVector<unsigned int> ii;

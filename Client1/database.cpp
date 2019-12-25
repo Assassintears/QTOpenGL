@@ -5,6 +5,7 @@
 DataBase::DataBase(const QString& connectName)
     :QObject (nullptr)
 {
+    m_stop = true;
     //!开始连接数据库
     m_dataBase = QSqlDatabase::addDatabase("QODBC", connectName);
     m_dataBase.setHostName("192.168.2.136");
@@ -12,21 +13,26 @@ DataBase::DataBase(const QString& connectName)
     m_dataBase.setUserName("sa");
     m_dataBase.setPassword("sa");
     m_dataBase.setPort(1433);
+    m_connectName = connectName;
 }
 
 DataBase::~DataBase()
-{}
+{
+}
 
 void DataBase::selectRealDataFromDB(const QString& sql)
 {
-//    qDebug() << "读取数据库线程 " << QThread::currentThread() << "\n";
-//    qDebug() << "开始结束时间 " << QTime::currentTime() << "   \n" << "数据采集次数 " << k++ << "\n";
+    if (m_stop)
+    {
+        return;
+    }
     QMutexLocker locker(&m_mutex);
     if (!m_dataBase.isOpen())
     {
         if (!m_dataBase.open())
         {
-            qDebug() << "打开数据库失败\n" << m_dataBase.lastError().text() << "\n";
+            qDebug() << "数据库断开\n" << m_dataBase.lastError().text() << "\n";
+            emit State(2);
             return;
         }
     }
@@ -40,6 +46,10 @@ void DataBase::selectRealDataFromDB(const QString& sql)
         {
             QVector<float> tmp;
             QSqlRecord rec = query.record();
+            if (rec.count() < 1)
+            {
+                continue;
+            }
             for (int i = 0; i < rec.count() - 1; ++i)
             {
                 QVariant vt = rec.value(i);
@@ -52,20 +62,23 @@ void DataBase::selectRealDataFromDB(const QString& sql)
                     tmp.push_back(vt.toFloat());
                 }
             }
-            if (1 != tmp.size())
-            {
-                data.push_back(tmp);
-            }
-            else
-            {
-                qDebug() << "size = " << tmp.size() << "\n";
-            }
+            data.push_back(tmp);
             rec.clear();
             tmp.clear();
         }
+
+        //! 防止数据库突然断开，最后一次数据来不及取导致最后一行数据列数与之前的行的列数不一致
         if (!data.isEmpty())
         {
-            emit dataBase(data);
+            qDebug() << data.size() << "\n" << data[data.size() - 1].size() << "\n";
+            if (data.size() > 1)
+            {
+                if (data[0].size() != data[data.size() - 1].size())
+                {
+                    data.erase(data.end() - 1, data.end());
+                }
+                emit dataBase(data);
+            }
         }
         query.clear();
     }
@@ -76,14 +89,13 @@ void DataBase::selectRealDataFromDB(const QString& sql)
 void DataBase::StartStopScanner(const QString& sql, const QString& select)
 {
     QMutexLocker locker(&m_mutex);
-    qDebug() << "读取数据库时间 " << QTime::currentTime() << "\n";
-    qDebug() << "开始结束 " << QThread::currentThread() << "\n";
     if (!m_dataBase.isOpen())
     {
         if (!m_dataBase.open())
         {
             qDebug() << "Open DB error: " << m_dataBase.lastError().text() << "\n";
-            return State(2);
+            emit State(2);
+            return;
         }
     }
     //!写入指令
@@ -132,5 +144,19 @@ void DataBase::StartStopScanner(const QString& sql, const QString& select)
         query.clear();
         m_dataBase.close();
         return;
+    }
+}
+
+void DataBase::reconnectDB()
+{
+    m_dataBase.close();
+    if (m_dataBase.open())
+    {
+        qDebug() << "重连成功\n";
+        emit State(4);
+        return;
+    }
+    else {
+        QThread::sleep(1);
     }
 }

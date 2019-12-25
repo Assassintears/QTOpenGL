@@ -28,5 +28,6 @@
         <file>Resources/view_padd.png</file>
         <file>Resources/view_point.png</file>
         <file>Resources/wait.gif</file>
+        <file>Resources/app.ico</file>
     </qresource>
 </RCC>

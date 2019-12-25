@@ -13,17 +13,16 @@
 MainWindow::MainWindow(QMainWindow *parent)
     : QMainWindow(parent)
 {
+    QIcon* icon = new QIcon(":/Resources/app.ico");
+   if (!icon->isNull())
+   {
+       this->setWindowIcon(*icon);
+   }
+
     //! 注册从元数据
     qRegisterMetaType<QVector<QVector<float> > > ("origData");
     qRegisterMetaType<QVector<QVector3D> > ("Points");
     qRegisterMetaType<QVector<unsigned int> > ("index");
-    //! 建立一个数据库连接
-    db = QSqlDatabase::addDatabase("QODBC");//! 默认的连接名
-    db.setHostName("192.168.2.136");
-    db.setDatabaseName("DB");//! 如果是QODBC驱动，此处应该是数据源名称
-    db.setUserName("sa");
-    db.setPassword("sa");
-    db.setPort(1433);
 
     database = new DataBase(QString("connect"));
     database->moveToThread(&pullDataBase);
@@ -71,8 +70,6 @@ void MainWindow::createButtons()
     bcloud->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     bcolor->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     boverlook->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-
-    profile = new Profile;
 
     //! 设置按钮icon
     bhistory->setStyleSheet("border-image:url(:/Resources/nowtime.png)");
@@ -166,7 +163,7 @@ void MainWindow::createButtons()
     pollData = new QTimer;
     pollData->start(1000);//!100ms轮询一次数据库
     state = NOTDEFINE;
-
+    currentstatus->setText(tr("初始化"));
 }
 
 void MainWindow::layout()
@@ -221,14 +218,15 @@ void MainWindow::SignalSlots()
     connect(&pullDataBase, &QThread::finished, database, &QObject::deleteLater);
     connect(&calcPointAttr, &QThread::finished, cdata, &QObject::deleteLater);
     connect(timer, &QTimer::timeout, this, &MainWindow::updateTime);
-    connect(bpatch, &QPushButton::clicked, this, &MainWindow::setPatch);    //! 设置填充
-    connect(bcloud, &QPushButton::clicked, this, &MainWindow::setPointCloud); //! 设置点云
-    connect(bspride, &QPushButton::clicked, this, &MainWindow::setLines);   //! 设置线框
+    connect(bpatch, &QPushButton::clicked, this, &MainWindow::setPatch);        //! 设置填充
+    connect(bcloud, &QPushButton::clicked, this, &MainWindow::setPointCloud);   //! 设置点云
+    connect(bspride, &QPushButton::clicked, this, &MainWindow::setLines);       //! 设置线框
     connect(pollData, &QTimer::timeout, this, &MainWindow::pollingDataBase);    //! 读取数据库数据
     connect(this, &MainWindow::pullonce,
-            database, &DataBase::selectRealDataFromDB);//! 线程读取数据库数据
-    connect(database, &DataBase::dataBase, cdata, &CData::calcPoint);    //! 发送信号给数据类，表示有数据需要处理
-    connect(cdata, &CData::hasData, openglwidget, &GLWidget::updateData);  //! 数据类处理完发送给OpenGL渲染
+            database, &DataBase::selectRealDataFromDB);                         //! 线程读取数据库数据
+    connect(this, &MainWindow::reconnectDB, database, &DataBase::reconnectDB);  //! 重连数据库
+    connect(database, &DataBase::dataBase, cdata, &CData::calcPoint);           //! 发送信号给数据类，表示有数据需要处理
+    connect(cdata, &CData::hasData, openglwidget, &GLWidget::updateData);       //! 数据类处理完发送给OpenGL渲染
     connect(edity0, &QLineEdit::editingFinished, this, &MainWindow::initY);
     connect(editstepy, &QLineEdit::editingFinished, this, &MainWindow::initStepY);
     connect(start, &QPushButton::clicked, this, &MainWindow::on_Start_click);
@@ -261,7 +259,11 @@ void MainWindow::updateTime()
 {
     QDateTime currentTime = QDateTime::currentDateTime();
     timelabel->setText(currentTime.toString("yyyy-MM-dd hh:mm:ss"));
-//    this->openglwidget->paintOpenGL();
+    if (m_bIsConnected)
+    {
+        emit reconnectDB();
+    }
+
 }
 
 void MainWindow::setPatch()
@@ -305,6 +307,7 @@ void MainWindow::on_Start_click()
     else if ("End" == tx)
     {
         emit StartStopScanner(stop);
+        database->m_stop = true;
     }
     else {
         ;
@@ -313,7 +316,7 @@ void MainWindow::on_Start_click()
 
 void MainWindow::setStartText(int state)
 {
-    qDebug() << "返回的状态值：" << state << "\n";
+    qDebug() << "返回的状态 " << state << "\n";
     QString tx = start->text();
     if (0 == state)
     {
@@ -321,14 +324,47 @@ void MainWindow::setStartText(int state)
         {
             start->setText("End");
             this->state = START;
+            database->m_stop = false;
+            currentstatus->setText(tr("正在扫描"));
         }
-        else if ("End" == tx)
+        else
         {
             start->setText("Start");
             this->state = END;
+            currentstatus->setText(tr("结束扫描"));
         }
-        else {
-            ;
+    }
+    else if (2 == state)
+    {
+        if ("Start" == tx)
+        {
+            this->state = START;
+            database->m_stop = false;
         }
+        else
+        {
+            this->state = END;
+            database->m_stop = true;
+        }
+        currentstatus->setText(tr("重连数据库"));
+        m_bIsConnected = true;
+    }
+    else if (3 == state)
+    {
+        if ("Start" == tx)
+        {
+            this->state = START;
+            database->m_stop = false;
+        }
+        else
+        {
+            this->state = END;
+            database->m_stop = true;
+        }
+        currentstatus->setText(tr("指令无效"));
+    }
+    else if (4 == state)
+    {
+        m_bIsConnected = false;
     }
 }
