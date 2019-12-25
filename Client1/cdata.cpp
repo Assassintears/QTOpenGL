@@ -15,7 +15,7 @@ CData::~CData()
 
 void CData::calcPoint(QVector<QVector<float>> db)
 {
-    qDebug() << "数据处理线程: " << QThread::currentThread() << "\n";
+//    qDebug() << "数据处理线程: " << QThread::currentThread() << "\n";
     if (db.empty())
     {
         qDebug() << "No data" << "\n";

@@ -10,7 +10,9 @@
 #include <QVector3D>
 #include <QDebug>
 #include <QTransform>
-#include <QtMath>
+#include <QtCore/QtMath>
+
+const float PI = 3.1415926f;
 
 
 GLWidget::GLWidget(QWidget *parent)
@@ -40,9 +42,10 @@ GLWidget::GLWidget(QWidget *parent)
     anglex = -70.0f;
     angley = 0.0f;
     anglez = -135.0f;
-    PosX = 0.0f;//!
+    PosX = 0.0f;    //! x位置
     PosY = 0.0f;    //! y位置
-    PosZ = -500.0f;//!
+    PosZ = -500.0f; //! z位置
+    scal = 1.0f;    //! 缩放因子
 
     material.ambient = QVector3D(0.02f, 0.02f, 0.02f);
     material.diffuse = QVector3D(0.01f, 0.01f, 0.01f);
@@ -53,7 +56,6 @@ GLWidget::GLWidget(QWidget *parent)
     light.diffuse = QVector3D(0.2f, 0.2f, 0.2f);
     light.specular = QVector3D(1.0f, 1.0f, 1.0f);
     light.postion = QVector3D(25.0f, 150.0f, 100.0f);//! 相机坐标系下的光源位置
-//    light.direction = QVector3D(1.0f, 1.0f, -100.0f);
 }
 
 GLWidget::~GLWidget()
@@ -175,6 +177,18 @@ void GLWidget::initializeGL()
     m_camera.rotate(angley, QVector3D(0.0f, 1.0f, 0.0f));
     m_camera.rotate(anglez, QVector3D(0.0f, 0.0f, 1.0f));
     m_model.setToIdentity();
+
+    QMatrix4x4 tmp;
+    tmp.setToIdentity();
+    float cz = cosf(anglez / 180.0f * PI);
+    float sz = sinf(anglez / 180.0f * PI);
+    float cx = cosf(anglex / 180.0f * PI);
+    float sx = sinf(anglex / 180.0f * PI);
+    float cy = cosf(angley / 180.0f * PI);
+    float sy = sinf(angley / 180.0f * PI);
+    tmp.setRow(0, QVector4D(cz*cy, -cy*sz, sy, 0));
+    tmp.setRow(1, QVector4D(sx*sy*cz+cx*sz, -sx*sy*sz+cx*cz, -sx*cy, 0));
+    tmp.setRow(2, QVector4D(-cx*sy*cz+sx*sz, cx*sy*sz+sx*cz, cx*cy, 0));
 }
 
 
@@ -228,16 +242,21 @@ void GLWidget::mouseDoubleClickEvent(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton)
     {
+        anglex = -70.0f;
+        angley = 0.0f;
+        anglez = -135.0f;
+        PosX = 0.0f;    //! x位置
+        PosY = 0.0f;    //! y位置
+        PosZ = -500.0f; //! z位置
+        scal = 1.0f;
         m_camera.setToIdentity();
         m_camera.translate(PosX, PosY, PosZ);
         m_camera.rotate(anglex, QVector3D(1.0f, 0.0f, 0.0f));
         m_camera.rotate(angley, QVector3D(0.0f, 1.0f, 0.0f));
         m_camera.rotate(anglez, QVector3D(0.0f, 0.0f, 1.0f));
         m_proj.setToIdentity();
-//        m_proj.perspective(45.0f, 1.0f *  this->width() / this->height(), 0.1f, 1000.0f);
         m_proj.ortho(-this->width() / 2.0f, this->width() / 2.0f,
                      -this->height() / 2.0f, this->height() / 2.0f, 0.1f, 1000.0f);
-
         m_model.setToIdentity();
         update();
     }
@@ -245,22 +264,43 @@ void GLWidget::mouseDoubleClickEvent(QMouseEvent *event)
 
 void GLWidget::mouseMoveEvent(QMouseEvent *event)
 {
+    QMatrix4x4 transform;
+    transform.setToIdentity();
     QPointF currentPoint = event->localPos();
     float dx = static_cast<float>(currentPoint.x() - m_lastPos.x());//移动的像素距离
     float dy = static_cast<float>(currentPoint.y() - m_lastPos.y());
 
     if (event->buttons() & Qt::LeftButton)
     {
-        m_camera.rotate(dy, QVector3D(0.0f, 1.0f, 0.0f));
-        m_camera.rotate(dx, QVector3D(0.0f, 0.0f, 1.0f));
+        anglex += dy;
+        anglez += dx;
     }
     if (event->buttons() & Qt::RightButton)
     {
-        m_camera.translate(-dx * 0.5f, 0.0f, -dy * 0.5f);
+        PosX += dx;
+        PosY -= dy;
     }
+    float cz = cosf(anglez / 180.0f * PI);
+    float sz = sinf(anglez / 180.0f * PI);
+    float cx = cosf(anglex / 180.0f * PI);
+    float sx = sinf(anglex / 180.0f * PI);
+    float cy = cosf(angley / 180.0f * PI);
+    float sy = sinf(angley / 180.0f * PI);
+
+    //! 旋转顺序：z-y-x
+    m_camera.setRow(0, QVector4D(cz*cy, -cy*sz, sy, PosX));
+    m_camera.setRow(1, QVector4D(sx*sy*cz+cx*sz, -sx*sy*sz+cx*cz, -sx*cy, PosY));
+    m_camera.setRow(2, QVector4D(-cx*sy*cz+sx*sz, cx*sy*sz+sx*cz, cx*cy, PosZ));
+
+    m_camera *= QMatrix4x4(scal, 0.0, 0.0f, 0.0f,
+                           0.0f, scal, 0.0f, 0.0f,
+                           0.0f, 0.0f, scal, 0.0f,
+                           0.0f, 0.0f, 0.0f, 1.0f);
+
     m_lastPos = currentPoint;
     update();
 }
+
 
 void GLWidget::wheelEvent(QWheelEvent *event)
 {
@@ -275,7 +315,7 @@ void GLWidget::wheelEvent(QWheelEvent *event)
                            0.0f, 0.0f, 0.0f, 1.0f);
 
     }
-    else if (event->delta() < 0)//缩小
+    else//缩小
     {
         scal *= 0.8f;
         s *= QMatrix4x4(0.8f, 0.0, 0.0f, 0.0f,
@@ -295,6 +335,7 @@ void GLWidget::wheelEvent(QWheelEvent *event)
     else
     {
         m_camera *= s;
+
     }
     update();
 }
@@ -372,7 +413,18 @@ bool GLWidget::genCoordData(const QVector3D max, const QVector3D step,
 
 void GLWidget::rotateRight()
 {
-    m_camera.rotate(10, QVector3D(0.0f, 0.0f, 1.0f));
+    anglez += 10;
+//    m_camera.rotate(10, QVector3D(0.0f, 0.0f, 1.0f));
+    float cz = cosf(anglez / 180.0f * PI);
+    float sz = sinf(anglez / 180.0f * PI);
+    float cx = cosf(anglex / 180.0f * PI);
+    float sx = sinf(anglex / 180.0f * PI);
+    float cy = cosf(angley / 180.0f * PI);
+    float sy = sinf(angley / 180.0f * PI);
+    m_camera.setRow(0, QVector4D(cz*cy, -cy*sz, sy, PosX));
+    m_camera.setRow(1, QVector4D(sx*sy*cz+cx*sz, -sx*sy*sz+cx*cz, -sx*cy, PosY));
+    m_camera.setRow(2, QVector4D(-cx*sy*cz+sx*sz, cx*sy*sz+sx*cz, cx*cy, PosZ));
+    qDebug() << "右旋\n" << m_camera << "\n";
     update();
 }
 void GLWidget::rotateLeft()

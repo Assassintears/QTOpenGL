@@ -19,8 +19,8 @@ DataBase::~DataBase()
 
 void DataBase::selectRealDataFromDB(const QString& sql)
 {
-    qDebug() << "读取数据库线程 " << QThread::currentThread() << "\n";
-    qDebug() << "开始结束时间 " << QTime::currentTime() << "   \n" << "数据采集次数 " << k++ << "\n";
+//    qDebug() << "读取数据库线程 " << QThread::currentThread() << "\n";
+//    qDebug() << "开始结束时间 " << QTime::currentTime() << "   \n" << "数据采集次数 " << k++ << "\n";
     QMutexLocker locker(&m_mutex);
     if (!m_dataBase.isOpen())
     {

@@ -18,9 +18,9 @@ MainWindow::MainWindow(QMainWindow *parent)
     qRegisterMetaType<QVector<QVector3D> > ("Points");
     qRegisterMetaType<QVector<unsigned int> > ("index");
     //! 建立一个数据库连接
-    db = QSqlDatabase::addDatabase("QODBC");
+    db = QSqlDatabase::addDatabase("QODBC");//! 默认的连接名
     db.setHostName("192.168.2.136");
-    db.setDatabaseName("DB");//!如果是QODBC驱动，此处应该是数据源名称
+    db.setDatabaseName("DB");//! 如果是QODBC驱动，此处应该是数据源名称
     db.setUserName("sa");
     db.setPassword("sa");
     db.setPort(1433);
@@ -240,7 +240,7 @@ void MainWindow::SignalSlots()
 
 void MainWindow::pollingDataBase()
 {
-    qDebug() << "主线程：" << QThread::currentThread() << "\n";
+//    qDebug() << "主线程：" << QThread::currentThread() << "\n";
     if (START == state)
     {
         //! 这里判断读取哪个表格数据

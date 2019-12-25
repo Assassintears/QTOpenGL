@@ -67,16 +67,17 @@ public slots:
 protected:
     void initializeGL() override;   //!必须重载
     void paintGL() override;        //!必须重载
-    void resizeGL(int width, int height) override;  //!必须重载
+    void resizeGL(int width, int height) override;          //!必须重载
 
-    QSize minimumSizeHint() const override; //!作为子窗口时设置子窗口最小尺寸
-    QSize sizeHint() const override;        //!作为子窗口时设置子窗口默认尺寸
+    QSize minimumSizeHint() const override;                 //!作为子窗口时设置子窗口最小尺寸
+    QSize sizeHint() const override;                        //!作为子窗口时设置子窗口默认尺寸
 
 //    void keyPressEvent(QKeyEvent* key) override;//!键盘事件
-    void wheelEvent(QWheelEvent *event) override;//!滚轮事件
-    void mousePressEvent(QMouseEvent *event) override;//!鼠标按下事件
-    void mouseMoveEvent(QMouseEvent *event) override;//!鼠标移动事件
-    void mouseDoubleClickEvent(QMouseEvent *event) override; //! 左键双击事件--重置OpenGL模型初始位置
+    void wheelEvent(QWheelEvent *event) override;               //!滚轮事件
+    void mousePressEvent(QMouseEvent *event) override;          //!鼠标按下事件
+    void mouseMoveEvent(QMouseEvent *event) override;           //!鼠标移动事件
+//    void mouseReleaseEvent(QMouseEvent *event) override;        //! 鼠标释放事件
+    void mouseDoubleClickEvent(QMouseEvent *event) override;    //! 左键双击事件--重置OpenGL模型初始位置
 
 private:
     void initShaders();
@@ -89,14 +90,14 @@ private:
     bool genCoordData(const QVector3D max, const QVector3D step,
                       QVector<QVector3D>& out);
 
-    void drawCoal();  //! 渲染煤场
-    void drawCoord(); //! 渲染坐标轴
-    void drawText(QPainter& pt);  //! 渲染文本
+    void drawCoal();                    //! 渲染煤场
+    void drawCoord();                   //! 渲染坐标轴
+    void drawText(QPainter& pt);        //! 渲染文本
 
-    RenderMode mode;//!渲染模式
+    RenderMode mode;                    //!渲染模式
 
-    unsigned int uboExampleBlock;//!uniform缓冲块句柄
-    unsigned int uboBindPoint;  //!ubo绑定点
+    unsigned int uboExampleBlock;       //!uniform缓冲块句柄
+    unsigned int uboBindPoint;          //!ubo绑定点
 
     //!煤场缓冲区句柄
     QOpenGLShaderProgram *m_program;    //!模型着色器
@@ -112,23 +113,23 @@ private:
     Light light;
 
     //!坐标轴缓冲区句柄
-    int indexSize;//!坐标系图元计数
-    QOpenGLShaderProgram *coordPro;//!坐标着色器
+    int indexSize;                              //!坐标系图元计数
+    QOpenGLShaderProgram *coordPro;             //!坐标着色器
     QOpenGLBuffer VBO;
     QOpenGLVertexArrayObject VAO;
-    QHash<QString, QList<QVector3D> > labels;//!存储坐标轴刻度及其世界坐标位置,键为标签
+    QHash<QString, QList<QVector3D> > labels;   //!存储坐标轴刻度及其世界坐标位置,键为标签
 
     //!各种变换矩阵
-    float x0, x1, y0, y1, z0, z1;//!取值范围
-    QMatrix4x4 m_proj; //! 投影矩阵
-    QMatrix4x4 m_camera; //! 相机矩阵
-    QMatrix4x4 m_model; //! 模型矩阵
+    float x0, x1, y0, y1, z0, z1;   //!取值范围
+    QMatrix4x4 m_proj;              //! 投影矩阵
+    QMatrix4x4 m_camera;            //! 相机矩阵
+    QMatrix4x4 m_model;             //! 模型矩阵
     QMatrix4x4 mvp;
-    QPointF m_lastPos;//! 鼠标最后一次的位置
-    float scal; //! 缩放因子
-    float anglex; //! x方向旋转角度
-    float angley; //! y方向旋转角度
-    float anglez; //! z方向旋转角度
+    QPointF m_lastPos;              //! 鼠标最后一次的位置
+    float scal;                     //! 缩放因子
+    float anglex;                   //! x方向旋转角度
+    float angley;                   //! y方向旋转角度
+    float anglez;                   //! z方向旋转角度
     float PosX;
     float PosY;
     float PosZ;
