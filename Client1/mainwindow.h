@@ -51,7 +51,6 @@ private:
     QPushButton* bcolor;        //!颜色
 
     QGroupBox* control;         //!控制
-    QLabel* site;               //!场地
     QPushButton* start;         //!开始扫描
     QTreeWidget* coal;          //!煤堆树
 
@@ -73,7 +72,6 @@ private:
 
     GLWidget* openglwidget;     //! OpenGL控件
     CData* cdata;               //! 数据类
-    bool m_bIsConnected;        //! 数据库是否连接
 //    QSqlDatabase db;            //! 数据库
     clientState state;
     DataBase* database;         //! 轮询数据库实时3D数据

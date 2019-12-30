@@ -22,7 +22,7 @@ public:
 
 signals:
     void dataBase(QVector<QVector<float>> data);                        //! 对外发送表格中的数据
-    //! 开始测量状态，0：正常，1：该每场已经在测量， 2：数据库断开，3：指令无效, 4:数据库重连成功
+    //! 开始测量状态，0：正常，1：该每场已经在测量， 2：数据库断开，3：指令无效, 4:数据库重连成功, 5: 正在重连
     void State(int);
 
 public slots:
@@ -35,7 +35,8 @@ private:
     QString m_connectName;
 
 public:
-    bool m_stop;
+    bool m_stop;        //! 是否停止采集
+    bool m_isBreak;     //! 数据库是否断开
 
 };
 

@@ -6,6 +6,7 @@ DataBase::DataBase(const QString& connectName)
     :QObject (nullptr)
 {
     m_stop = true;
+    m_isBreak = true;
     //!开始连接数据库
     m_dataBase = QSqlDatabase::addDatabase("QODBC", connectName);
     m_dataBase.setHostName("192.168.2.136");
@@ -22,7 +23,7 @@ DataBase::~DataBase()
 
 void DataBase::selectRealDataFromDB(const QString& sql)
 {
-    if (m_stop)
+    if (m_stop || m_isBreak)
     {
         return;
     }
@@ -70,7 +71,6 @@ void DataBase::selectRealDataFromDB(const QString& sql)
         //! 防止数据库突然断开，最后一次数据来不及取导致最后一行数据列数与之前的行的列数不一致
         if (!data.isEmpty())
         {
-            qDebug() << data.size() << "\n" << data[data.size() - 1].size() << "\n";
             if (data.size() > 1)
             {
                 if (data[0].size() != data[data.size() - 1].size())
@@ -89,15 +89,14 @@ void DataBase::selectRealDataFromDB(const QString& sql)
 void DataBase::StartStopScanner(const QString& sql, const QString& select)
 {
     QMutexLocker locker(&m_mutex);
-    if (!m_dataBase.isOpen())
-    {
-        if (!m_dataBase.open())
-        {
-            qDebug() << "Open DB error: " << m_dataBase.lastError().text() << "\n";
-            emit State(2);
-            return;
-        }
-    }
+   if (!m_dataBase.isOpen())
+   {
+       if (!m_dataBase.open())
+       {
+           emit State(2);
+           return;
+       }
+   }
     //!写入指令
     QSqlQuery query(m_dataBase);
     if (!select.isEmpty())//! 开始指令
@@ -149,14 +148,22 @@ void DataBase::StartStopScanner(const QString& sql, const QString& select)
 
 void DataBase::reconnectDB()
 {
+    //! 避免多次重连--定时器在重连过程中会一直发重连信号，所有的重连信号存储在消息队列中，按顺序处理
+    if (!m_isBreak)
+    {
+        return;
+    }
+    QMutexLocker lock(&m_mutex);
     m_dataBase.close();
     if (m_dataBase.open())
     {
         qDebug() << "重连成功\n";
+        m_isBreak = false;
         emit State(4);
         return;
     }
     else {
         QThread::sleep(1);
+        return;
     }
 }

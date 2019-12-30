@@ -83,8 +83,7 @@ void MainWindow::createButtons()
     bcloud->setStyleSheet("border-image:url(:/Resources/view_point.png)");
     bcolor->setStyleSheet("border-image:url(:/Resources/cubage.png)");
 
-    control = new QGroupBox(tr("控制："), this);
-    site = new QLabel(tr("场地选择"));
+    control = new QGroupBox(tr("场地选择"), this);
     start = new QPushButton(tr("Start"));
     coal = new QTreeWidget;
     coal->clear();
@@ -92,20 +91,20 @@ void MainWindow::createButtons()
     coal->setColumnCount(1);
 
     QTreeWidgetItem* item1 = new QTreeWidgetItem;//!第一个节点
-    item1->setText(0, tr("A"));
+    item1->setText(0, tr("一号煤场"));
     QTreeWidgetItem* grandon11 = new QTreeWidgetItem;
     QTreeWidgetItem* grandon12 = new QTreeWidgetItem;
-    grandon11->setText(0, tr("扫描仪A"));
-    grandon12->setText(0, tr("扫描仪B"));
+    grandon11->setText(0, tr("一号天车"));
+    grandon12->setText(0, tr("二号天车"));
     item1->addChild(grandon11);
     item1->addChild(grandon12);
 
     QTreeWidgetItem* item2 = new QTreeWidgetItem;//!第一个节点
-    item2->setText(0, tr("B"));
+    item2->setText(0, tr("二号煤场"));
     QTreeWidgetItem* grandon21 = new QTreeWidgetItem;
     QTreeWidgetItem* grandon22 = new QTreeWidgetItem;
-    grandon21->setText(0, tr("扫描仪A"));
-    grandon22->setText(0, tr("扫描仪B"));
+    grandon21->setText(0, tr("一号天车"));
+    grandon22->setText(0, tr("二号天车"));
     item2->addChild(grandon21);
     item2->addChild(grandon22);
     coal->addTopLevelItem(item1);
@@ -117,16 +116,11 @@ void MainWindow::createButtons()
     grandon21->setCheckState(0, Qt::Unchecked);
     grandon22->setCheckState(0, Qt::Unchecked);
 
-    QVBoxLayout* left = new QVBoxLayout;
     QVBoxLayout* right = new QVBoxLayout;
     QHBoxLayout* contral_main = new QHBoxLayout;
-    left->addWidget(start);
-    left->addStretch();
 
-    right->addStretch();
-    right->addWidget(site, 0, Qt::AlignRight);
+
     right->addWidget(coal);
-    contral_main->addLayout(left);
     contral_main->addLayout(right);
     control->setLayout(contral_main);
 
@@ -199,7 +193,7 @@ void MainWindow::layout()
     middle->setAlignment(left, Qt::AlignTop);
     left->addLayout(middle);
     left->addWidget(openglwidget);
-//    left->addStretch();
+    right->addWidget(start);
     right->addWidget(control);
     right->addStretch();
     right->addWidget(deit);
@@ -242,7 +236,7 @@ void MainWindow::pollingDataBase()
     if (START == state)
     {
         //! 这里判断读取哪个表格数据
-        QString sql = "select * from T_3D_record";
+        QString sql = "select * from 一号煤场";
         emit pullonce(sql);
     }
 }
@@ -259,7 +253,7 @@ void MainWindow::updateTime()
 {
     QDateTime currentTime = QDateTime::currentDateTime();
     timelabel->setText(currentTime.toString("yyyy-MM-dd hh:mm:ss"));
-    if (m_bIsConnected)
+    if (database->m_isBreak)
     {
         emit reconnectDB();
     }
@@ -268,17 +262,21 @@ void MainWindow::updateTime()
 
 void MainWindow::setPatch()
 {
-    this->openglwidget->setRenderMode(Patch);
+    openglwidget->setRenderMode(Patch);
+    openglwidget->update();
 }
 
 void MainWindow::setPointCloud()
 {
-    this->openglwidget->setRenderMode(PointCloud);
+    openglwidget->setRenderMode(PointCloud);
+    openglwidget->update();
+
 }
 
 void MainWindow::setLines()
 {
     this->openglwidget->setRenderMode(Lines);
+    openglwidget->update();
 }
 
 void MainWindow::initY()
@@ -296,9 +294,9 @@ void MainWindow::initStepY()
 void MainWindow::on_Start_click()
 {
     QString tx = start->text();
-    QString start = "UPDATE t_Child_operation SET isstate = 1 WHERE operationID = '1'";
-    QString stop = "UPDATE t_Child_operation SET isstate = 0 WHERE operationID = '1'";
-    QString select = "SELECT isstate FROM t_Child_operation WHERE operationID = '1'"; //! 开始测量之前，先查看当前煤场是否已经在测量
+    QString start = "UPDATE IPC SET State = 1 WHERE SiteID = 1";
+    QString stop = "UPDATE IPC SET State = 0 WHERE SiteID = 1";
+    QString select = "SELECT State FROM IPC WHERE SiteID = 1"; //! 开始测量之前，先查看当前煤场是否已经在测量
     if ("Start" == tx)
     {
         emit StartStopScanner(start, select);
@@ -316,9 +314,8 @@ void MainWindow::on_Start_click()
 
 void MainWindow::setStartText(int state)
 {
-    qDebug() << "返回的状态 " << state << "\n";
     QString tx = start->text();
-    if (0 == state)
+    if (0 == state)     //! 正常返回
     {
         if ("Start" == tx)
         {
@@ -334,22 +331,22 @@ void MainWindow::setStartText(int state)
             currentstatus->setText(tr("结束扫描"));
         }
     }
-    else if (2 == state)
+    else if (2 == state)        //! 数据库断开
     {
         if ("Start" == tx)
         {
-            this->state = START;
-            database->m_stop = false;
+            this->state = END;
+            database->m_stop = true;    //! 停止采集
         }
         else
         {
-            this->state = END;
-            database->m_stop = true;
+            this->state = START;
+            database->m_stop = false;   //! 继续采集
         }
         currentstatus->setText(tr("重连数据库"));
-        m_bIsConnected = true;
+        database->m_isBreak = true;
     }
-    else if (3 == state)
+    else if (3 == state)        //! 指令无效
     {
         if ("Start" == tx)
         {
@@ -363,8 +360,21 @@ void MainWindow::setStartText(int state)
         }
         currentstatus->setText(tr("指令无效"));
     }
-    else if (4 == state)
+    else if (4 == state)        //! 重连成功
     {
-        m_bIsConnected = false;
+        database->m_isBreak = false;
+        currentstatus->setText(tr("重连成功"));
+        if ("Start" == tx)
+        {
+            this->state = END;
+            database->m_stop = true;    //! 停止采集
+            currentstatus->setText(tr("停止扫描"));
+        }
+        else
+        {
+            this->state = START;
+            database->m_stop = false;   //! 继续采集
+            currentstatus->setText(tr("继续扫描"));
+        }
     }
 }

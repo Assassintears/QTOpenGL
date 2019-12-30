@@ -414,7 +414,6 @@ bool GLWidget::genCoordData(const QVector3D max, const QVector3D step,
 void GLWidget::rotateRight()
 {
     anglez += 10;
-//    m_camera.rotate(10, QVector3D(0.0f, 0.0f, 1.0f));
     float cz = cosf(anglez / 180.0f * PI);
     float sz = sinf(anglez / 180.0f * PI);
     float cx = cosf(anglex / 180.0f * PI);
@@ -424,11 +423,28 @@ void GLWidget::rotateRight()
     m_camera.setRow(0, QVector4D(cz*cy, -cy*sz, sy, PosX));
     m_camera.setRow(1, QVector4D(sx*sy*cz+cx*sz, -sx*sy*sz+cx*cz, -sx*cy, PosY));
     m_camera.setRow(2, QVector4D(-cx*sy*cz+sx*sz, cx*sy*sz+sx*cz, cx*cy, PosZ));
+    m_camera *= QMatrix4x4(scal, 0.0, 0.0f, 0.0f,
+                           0.0f, scal, 0.0f, 0.0f,
+                           0.0f, 0.0f, scal, 0.0f,
+                           0.0f, 0.0f, 0.0f, 1.0f);
     update();
 }
 void GLWidget::rotateLeft()
 {
-    m_camera.rotate(-10, QVector3D(0.0f, 0.0f, 1.0f));
+    anglez -= 10;
+    float cz = cosf(anglez / 180.0f * PI);
+    float sz = sinf(anglez / 180.0f * PI);
+    float cx = cosf(anglex / 180.0f * PI);
+    float sx = sinf(anglex / 180.0f * PI);
+    float cy = cosf(angley / 180.0f * PI);
+    float sy = sinf(angley / 180.0f * PI);
+    m_camera.setRow(0, QVector4D(cz*cy, -cy*sz, sy, PosX));
+    m_camera.setRow(1, QVector4D(sx*sy*cz+cx*sz, -sx*sy*sz+cx*cz, -sx*cy, PosY));
+    m_camera.setRow(2, QVector4D(-cx*sy*cz+sx*sz, cx*sy*sz+sx*cz, cx*cy, PosZ));
+    m_camera *= QMatrix4x4(scal, 0.0, 0.0f, 0.0f,
+                           0.0f, scal, 0.0f, 0.0f,
+                           0.0f, 0.0f, scal, 0.0f,
+                           0.0f, 0.0f, 0.0f, 1.0f);
     update();
 }
 
