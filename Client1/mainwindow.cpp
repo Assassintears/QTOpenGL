@@ -1,9 +1,5 @@
 ﻿#include "mainwindow.h"
-#include <QHBoxLayout>
 #include <QGridLayout>
-#include <QHBoxLayout>
-#include <QVBoxLayout>
-#include <QLabel>
 #include <QMessageBox>
 #include <QString>
 #include <QStatusBar>
@@ -13,7 +9,7 @@
 MainWindow::MainWindow(QMainWindow *parent)
     : QMainWindow(parent)
 {
-    QIcon* icon = new QIcon(":/Resources/app.ico");
+   QIcon* icon = new QIcon(":/Resources/app.ico");
    if (!icon->isNull())
    {
        this->setWindowIcon(*icon);
@@ -23,6 +19,7 @@ MainWindow::MainWindow(QMainWindow *parent)
     qRegisterMetaType<QVector<QVector<float> > > ("origData");
     qRegisterMetaType<QVector<QVector3D> > ("Points");
     qRegisterMetaType<QVector<unsigned int> > ("index");
+    qRegisterMetaType<QVector<QVector<int> > > ("volum");
 
     database = new DataBase(QString("connect"));
     database->moveToThread(&pullDataBase);
@@ -85,6 +82,7 @@ void MainWindow::createButtons()
 
     control = new QGroupBox(tr("场地选择"), this);
     start = new QPushButton(tr("Start"));
+//    start->setFixedSize(QSize(80, 40));
     coal = new QTreeWidget;
     coal->clear();
     coal->setHeaderHidden(true);
@@ -116,6 +114,18 @@ void MainWindow::createButtons()
     grandon21->setCheckState(0, Qt::Unchecked);
     grandon22->setCheckState(0, Qt::Unchecked);
 
+    region = new QGroupBox(tr("区域"));
+    region_query = new QPushButton(tr("查询"));
+    region_start_label = new QLabel(tr("开始值/m"));
+    region_end_label = new QLabel(tr("结束值/m"));
+    region_start = new QLineEdit;
+    region_start->setValidator(new QRegExpValidator(QRegExp("[0-9\\.]+$")));
+    region_end = new QLineEdit;
+    region_end->setValidator(new QRegExpValidator(QRegExp("[0-9\\.]+$")));
+    volum_label = new QLabel(tr("体积/m^3"));
+    region_volum = new QLabel(tr("0"));
+
+
     QVBoxLayout* right = new QVBoxLayout;
     QHBoxLayout* contral_main = new QHBoxLayout;
 
@@ -129,8 +139,8 @@ void MainWindow::createButtons()
     stepy = new QLabel(tr("stepY/cm"));
     edity0 = new QLineEdit;
     editstepy = new QLineEdit;
-    edity0->setValidator(new QRegExpValidator(QRegExp("[0-9]+\\.[0-9]+$")));
-    editstepy->setValidator(new QRegExpValidator(QRegExp("[0-9]+\\.[0-9]+$")));
+    edity0->setValidator(new QRegExpValidator(QRegExp("[0-9\\.]+$")));
+    editstepy->setValidator(new QRegExpValidator(QRegExp("[0-9\\.]+$")));
     QVBoxLayout* left_edit = new QVBoxLayout;
     QVBoxLayout* right_edit = new QVBoxLayout;
     QHBoxLayout* edit_lay = new QHBoxLayout;
@@ -187,17 +197,41 @@ void MainWindow::layout()
     grid->addWidget(bcolor, 0, 9);
     grid->addWidget(new QLabel(tr("颜色"), this), 1, 9);
 
+    QHBoxLayout* region_h = new QHBoxLayout;
+    QVBoxLayout* region_vl = new QVBoxLayout;
+    QVBoxLayout* region_vr = new QVBoxLayout;
+
+    QHBoxLayout* vllu = new QHBoxLayout;
+    vllu->addWidget(region_start_label);
+    vllu->addWidget(region_start);
+    vllu->addWidget(region_end_label);
+    vllu->addWidget(region_end);
+    QHBoxLayout* vlld = new QHBoxLayout;
+    vlld->addWidget(volum_label);
+    vlld->addWidget(region_volum);
+    region_vl->addLayout(vllu);
+    region_vl->addLayout(vlld);
+    region_vr->addStretch();
+    region_vr->addWidget(region_query);
+    region_vr->addStretch();
+    region_h->addLayout(region_vl);
+    region_h->addLayout(region_vr);
+    region->setLayout(region_h);
+
     QHBoxLayout* middle = new QHBoxLayout;
     left->addLayout(grid);
     left->addStretch();
     middle->setAlignment(left, Qt::AlignTop);
     left->addLayout(middle);
     left->addWidget(openglwidget);
+
     right->addWidget(start);
+    start->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     right->addWidget(control);
     right->addStretch();
     right->addWidget(deit);
     right->addStretch();
+    right->addWidget(region);
     right->addWidget(section);
     mainlay->addLayout(left);
     mainlay->addLayout(right);
@@ -228,11 +262,17 @@ void MainWindow::SignalSlots()
     connect(database, &DataBase::State, this, &MainWindow::setStartText);
     connect(bright_rotate, &QPushButton::clicked, openglwidget, &GLWidget::rotateRight);
     connect(bleft_rotate, &QPushButton::clicked, openglwidget, &GLWidget::rotateLeft);
+
+    //! 计算体积信号
+    connect(region_query, &QPushButton::clicked, this, &MainWindow::on_query);
+    connect(this, &MainWindow::calVolum, database, &DataBase::selectAll);
+    connect(database, &DataBase::calcVolum, cdata, &CData::calcVolum);
+    connect(cdata, &CData::Volum, this, &MainWindow::VolumRes);
+//    connect(database, &DataBase::Volum, this, &MainWindow::VolumRes);
 }
 
 void MainWindow::pollingDataBase()
 {
-//    qDebug() << "主线程：" << QThread::currentThread() << "\n";
     if (START == state)
     {
         //! 这里判断读取哪个表格数据
@@ -377,4 +417,41 @@ void MainWindow::setStartText(int state)
             currentstatus->setText(tr("继续扫描"));
         }
     }
+}
+
+void MainWindow::on_query()
+{
+    QString s = region_start->text();
+    QString e = region_end->text();
+    if (s.isEmpty())
+    {
+        qDebug() << "必须输入起始值\n";
+        return;
+    }
+    if (e.isEmpty())
+    {
+        qDebug() << "必须输入结束值\n";
+        return;
+    }
+    int start = static_cast<int>(s.toFloat() * 1000.0f);
+    int end = static_cast<int>(e.toFloat() * 1000.0f);
+    if (start >= end)
+    {
+        qDebug() << "起始值必须小于结束值\n";
+        return;
+    }
+    if (START == this->state)
+    {
+        qDebug() << "当前正在扫描，请等待扫描结束后查询\n";
+        return;
+    }
+
+    emit calVolum(start, end);
+    return;
+
+}
+
+void MainWindow::VolumRes(float volum)
+{
+    region_volum->setText(QString::number(volum));
 }

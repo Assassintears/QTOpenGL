@@ -1,4 +1,4 @@
-#include <database.h>
+﻿#include <database.h>
 #include <QThread>
 #include <QTime>
 
@@ -86,6 +86,109 @@ void DataBase::selectRealDataFromDB(const QString& sql)
     return;
 }
 
+void DataBase::selectAll(int start, int end)
+{
+    if (m_isBreak)
+    {
+        return;
+    }
+    QMutexLocker locker(&m_mutex);
+    if (!m_dataBase.isOpen())
+    {
+        if (!m_dataBase.open())
+        {
+            qDebug() << "数据库断开\n" << m_dataBase.lastError().text() << "\n";
+            emit State(2);
+            return;
+        }
+    }
+    QString sql = "select * from 一号煤场";
+    QSqlQuery query(m_dataBase);
+    query.exec(sql);
+    QVector<QVector<int>> data;
+    if (query.isActive())
+    {
+        //!取结果集
+
+        while (query.next())
+        {
+            QVector<int> tmp;
+            QSqlRecord rec = query.record();
+            if (rec.count() < 1)
+            {
+                continue;
+            }
+            for (int i = 0; i < rec.count() - 1; ++i)
+            {
+                QVariant vt = rec.value(i);
+                if (vt.isNull())
+                {
+                    break;
+                }
+                else
+                {
+                    tmp.push_back(vt.toInt());
+                }
+            }
+            data.push_back(tmp);
+            rec.clear();
+            tmp.clear();
+        }
+
+        //! 防止数据库突然断开，最后一次数据来不及取导致最后一行数据列数与之前的行的列数不一致
+        if (!data.isEmpty())
+        {
+            if (data.size() > 1)
+            {
+                if (data[0].size() != data[data.size() - 1].size())
+                {
+                    data.erase(data.end() - 1, data.end());
+                }
+                emit calcVolum(start, end, data);
+            }
+        }
+        query.clear();
+    }
+    m_dataBase.close();
+    locker.unlock();
+    return;
+}
+
+void DataBase::initDB()
+{
+    if (m_isInited)
+    {
+        return;
+    }
+    if (!m_dataBase.isOpen())
+    {
+        if (!m_dataBase.open())
+        {
+            emit State(1);
+            return;
+        }
+    }
+     QSqlQuery query(m_dataBase);
+     QString sql = "SELECT * FROM InitTable";
+     query.exec(sql);
+     if (!query.isActive())
+     {
+         emit State(1);
+         return;
+     }
+
+     while (query.next()) {
+         QSqlRecord rec = query.record();
+         //! 取总表中的煤场ID和实时数据表
+        int id = rec.value(rec.indexOf("SiteID")).toInt();
+        QString name = rec.value(rec.indexOf("TableName")).toString();
+//        m_coalInfo[id] = name;
+     }
+     m_isInited = true;
+     query.clear();
+     m_dataBase.close();
+}
+
 void DataBase::StartStopScanner(const QString& sql, const QString& select)
 {
     QMutexLocker locker(&m_mutex);
@@ -167,3 +270,4 @@ void DataBase::reconnectDB()
         return;
     }
 }
+

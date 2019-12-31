@@ -16,6 +16,8 @@
 #include <QSqlQuery>
 #include <QSqlRecord>
 #include <QLineEdit>
+#include <QHBoxLayout>
+#include <QVBoxLayout>
 #include <database.h>
 #include "cdata.h"
 
@@ -60,7 +62,16 @@ private:
     QLineEdit* edity0;
     QLineEdit* editstepy;
 
-    QGroupBox* section;         //!切面
+    QGroupBox* section;         //! 切面
+
+    QGroupBox* region;          //! 区域
+    QLineEdit* region_start;    //! 区域开始
+    QLineEdit* region_end;      //! 区域结束
+    QLabel* region_volum;       //! 区域体积
+    QLabel* region_start_label;
+    QLabel* region_end_label;
+    QLabel* volum_label;
+    QPushButton* region_query;  //! 查询
 
     //!自定义控件
     Profile* profile;           //!qt二维绘图控件
@@ -72,7 +83,6 @@ private:
 
     GLWidget* openglwidget;     //! OpenGL控件
     CData* cdata;               //! 数据类
-//    QSqlDatabase db;            //! 数据库
     clientState state;
     DataBase* database;         //! 轮询数据库实时3D数据
     QThread pullDataBase;       //! 读取数据库数据
@@ -81,6 +91,7 @@ signals:
     void pullonce(QString sql); //! 抓取一次数据库数据
     void StartStopScanner(QString sql, QString select = "");
     void reconnectDB();         //! 重连数据库
+    void calVolum(int start, int end);
 
 private:
     void createButtons();       //! 创建按钮
@@ -100,6 +111,8 @@ public slots:
     void initY();//!初始化Y0
     void initStepY();//!初始化stepY
     void setStartText(int); //! 设置开始按钮字符
+    void on_query();//! 计算体积
+    void VolumRes(float);
 };
 
 #endif // MAINWINDOW_H

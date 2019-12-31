@@ -1,4 +1,4 @@
-#include <cdata.h>
+﻿#include <cdata.h>
 #include <algorithm>
 #include <QFile>
 #include <QTextStream>
@@ -107,4 +107,76 @@ bool CData::reshape(const QVector<QVector<QVector3D>>& data,
     else {
         return false;
     }
+}
+
+void CData::calcVolum(int start, int end, QVector<QVector<int>> db)
+{
+    float sum = 0;
+    if (end > (db.end() - 1)->data()[0])
+    {
+        end = (db.end() - 1)->data()[0];
+    }
+
+    if (start < db[0][0])
+    {
+        start = db[0][0];
+    }
+
+    int dbSize = db.size();
+    int i;
+    int k = 0;
+    for (i = 0; i < dbSize - 1; ++i)
+    {
+        if (start <= db[i][0])
+        {
+            QVector<int> current = db[i];
+            QVector<int> next;
+            //! 下一行是否可取
+            if (db[i + 1][0] <= end)
+            {
+                next = db[i + 1];
+                k++;
+                sum += _calVolum(current, next);
+            }
+            else {
+                break;
+            }
+        }
+    }
+    emit Volum(sum);
+}
+
+/******************
+ *          a
+ *      |------/|
+ *     b|  c /  |e
+ *      |  /    |
+ *      -----d---
+ ******************/
+float CData::_calVolum(QVector<int> first, QVector<int> second, int stepx, int stepy)
+{
+    float a = stepx / 1000.0f;    //! 采样步长单位是mm
+    float b = stepy / 1000.0f;
+    float c = sqrt(a * a + b * b);
+    int num = first.size();
+    float sum = 0;
+    //! 根据海伦公式计算两个三角形面积
+    float p = (a + b + c) / 2;
+    float s = sqrt(p * (p - a) * (p - b) * (p - c));
+    //! 第一列是x，所以不取
+    for (int i = 1; i < num - 1; ++i)
+    {
+        float tl = first[i];        //! 左上角
+        float tr = first[i + 1];    //! 右上角
+
+        float bl = second[i];       //! 左下角
+        float br = second[i + 1];   //! 右下角
+
+        float h1 = (tl + tr + bl) / 3.0f;
+        float h2 = (tr + bl + br) / 3.0f;
+
+        sum += s * (h1 + h2) / 1000.0f;//! 高度单位默认为mm
+
+    }
+    return sum;
 }
