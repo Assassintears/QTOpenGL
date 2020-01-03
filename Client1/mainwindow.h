@@ -18,6 +18,7 @@
 #include <QLineEdit>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
+#include <QMultiHash>
 #include <database.h>
 #include "cdata.h"
 
@@ -73,6 +74,8 @@ private:
     QLabel* volum_label;
     QPushButton* region_query;  //! 查询
 
+//    QMultiHash<int, bool> m_isCoalSelected; //! 煤场是否被选中
+
     //!自定义控件
     Profile* profile;           //!qt二维绘图控件
 
@@ -113,6 +116,7 @@ public slots:
     void setStartText(int); //! 设置开始按钮字符
     void on_query();//! 计算体积
     void VolumRes(float);
+    void on_click_coal(QTreeWidgetItem *item, int column);
 };
 
 #endif // MAINWINDOW_H

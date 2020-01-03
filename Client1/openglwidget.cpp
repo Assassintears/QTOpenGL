@@ -50,11 +50,11 @@ GLWidget::GLWidget(QWidget *parent)
     material.ambient = QVector3D(0.02f, 0.02f, 0.02f);
     material.diffuse = QVector3D(0.01f, 0.01f, 0.01f);
     material.specular = QVector3D(0.5f, 0.5f, 0.5f);
-    material.shinines = 32.0f;
+    material.shinines = 16.0f;
 
     light.ambient = QVector3D(0.5f, 0.5f, 0.5f);
     light.diffuse = QVector3D(0.2f, 0.2f, 0.2f);
-    light.specular = QVector3D(1.0f, 1.0f, 1.0f);
+    light.specular = QVector3D(0.8f, 0.8f, 0.8f);
     light.postion = QVector3D(25.0f, 150.0f, 100.0f);//! 相机坐标系下的光源位置
 }
 
@@ -74,7 +74,7 @@ QSize GLWidget::sizeHint() const
 
 void GLWidget::initShaders()
 {
-    //!模型着色器
+    //! 模型着色器
     m_program = new QOpenGLShaderProgram;
     m_program->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/Dvs.shader");
     m_program->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/Dfs.shader");
@@ -82,9 +82,10 @@ void GLWidget::initShaders()
         close();
     if (!m_program->bind())
         close();
+//    glUniform1i(m_program->uniformLocation("shadowMap"), 0);
      m_program->release();
 
-    //!坐标轴着色器
+    //! 坐标轴着色器
     coordPro = new QOpenGLShaderProgram;
     coordPro->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/coordvs.vert");
     coordPro->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/coordfs.frag");
@@ -94,6 +95,17 @@ void GLWidget::initShaders()
     if (!coordPro->bind())
         close();
     coordPro->release();
+
+//    //! 阴影着色器
+//    shadow_prog = new QOpenGLShaderProgram;
+//    shadow_prog->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/depth.vert");
+//    shadow_prog->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/depth.frag");
+//    if (!shadow_prog->link())
+//        close();
+
+//    if (!shadow_prog->bind())
+//        close();
+//    shadow_prog->release();
 
 }
 
@@ -157,10 +169,30 @@ void GLWidget::initializeGL()
     coordPro->release();
 
 
+    //! 创建缓冲区
     m_vao.create();
     m_vbo.create();
     m_colorvbo.create();
     m_normal.create();
+
+//    glGenFramebuffers(1, &fbo);
+//    glGenTextures(1, &depth_texture);
+//    glBindTexture(GL_TEXTURE_2D, depth_texture);
+//    // 设置纹理缓冲参数
+//    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+//    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+//    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+//    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+//    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+//    GLfloat borderColor[] = { 1.0, 1.0, 1.0, 1.0 };
+//    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+
+//    // 纹理缓冲绑定到帧缓冲
+//    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+//    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth_texture, 0);
+//    glDrawBuffer(GL_NONE);
+//    glReadBuffer(GL_NONE);
+//    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     //! 坐标轴数据
     QVector<QVector3D> out;
@@ -178,17 +210,6 @@ void GLWidget::initializeGL()
     m_camera.rotate(anglez, QVector3D(0.0f, 0.0f, 1.0f));
     m_model.setToIdentity();
 
-    QMatrix4x4 tmp;
-    tmp.setToIdentity();
-    float cz = cosf(anglez / 180.0f * PI);
-    float sz = sinf(anglez / 180.0f * PI);
-    float cx = cosf(anglex / 180.0f * PI);
-    float sx = sinf(anglex / 180.0f * PI);
-    float cy = cosf(angley / 180.0f * PI);
-    float sy = sinf(angley / 180.0f * PI);
-    tmp.setRow(0, QVector4D(cz*cy, -cy*sz, sy, 0));
-    tmp.setRow(1, QVector4D(sx*sy*cz+cx*sz, -sx*sy*sz+cx*cz, -sx*cy, 0));
-    tmp.setRow(2, QVector4D(-cx*sy*cz+sx*sz, cx*sy*sz+sx*cz, cx*cy, 0));
 }
 
 
@@ -196,8 +217,8 @@ void GLWidget::paintGL()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);//允许深度测试
-    glEnable(GL_LINE_SMOOTH);
-    glEnable(GL_PROGRAM_POINT_SIZE);
+//    glEnable(GL_LINE_SMOOTH);
+//    glEnable(GL_PROGRAM_POINT_SIZE);
 
     //! 开始渲染
     QPainter painter(this);
@@ -205,9 +226,10 @@ void GLWidget::paintGL()
     //! 画坐标轴
     drawCoord();
     //!画煤场
+//    drawShadow();
     drawCoal();
+
     //! 文本
-//    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     drawText(painter);
     painter.endNativePainting();
 }
@@ -225,7 +247,7 @@ void GLWidget::resizeGL(int w, int h)
     glBufferSubData(GL_UNIFORM_BUFFER, 16 * sizeof(float),
                     16 * sizeof(float), m_model.data());
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
-//    update();
+    update();
 }
 
 void GLWidget::paintOpenGL()
@@ -450,6 +472,8 @@ void GLWidget::rotateLeft()
 
 void GLWidget::drawCoal()
 {
+//    glViewport(0, 0, this->width(), this->height());
+//    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     m_program->bind();
     glUniformMatrix4fv(m_program->uniformLocation("camera"),
                        1, GL_FALSE, m_camera.data());
@@ -491,6 +515,53 @@ void GLWidget::drawCoal()
     m_vao.release();
     m_vbo.release();
     m_program->release();
+}
+
+void GLWidget::drawShadow()
+{
+
+//    shadow_prog->bind();
+//    //! 光源坐标系下的视图矩阵
+//    int w = this->width();
+//    int h = this->height();
+//    QMatrix4x4 lightProjection, lightView;
+//    lightProjection.setToIdentity();
+//    lightProjection.ortho(-w / 2.0f, w / 2.0f, -h / 2.0f, h / 2.0f, 0.1f, 1000.0f);
+//    lightView.setToIdentity();
+//    lightView.lookAt(light.postion, QVector3D(0.0f, 0.0f, 0.0f), QVector3D(0.0f, 1.0f, 0.0f));
+//    QMatrix4x4 lightSpaceMatrix = lightProjection * lightView;
+//    glUniformMatrix4fv(shadow_prog->uniformLocation("lightSpaceMatrix"),
+//                 1, GL_FALSE, lightSpaceMatrix.data());
+//    glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+//    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+//    glClear(GL_DEPTH_BUFFER_BIT);
+//    m_vao.bind();
+//    m_vbo.bind();
+//    glEnableVertexAttribArray(0);
+//    glVertexAttribPointer(0, 3, GL_FLOAT, false, 3 * sizeof(float), nullptr);
+//    glEnableVertexAttribArray(1);
+//    glVertexAttribPointer(1, 3, GL_FLOAT, false, 3 * sizeof(float), (void*)(count * 3 * sizeof(float)));
+//    if (Patch == mode)
+//    {
+////        glPolygonMode(GL_FRONT, GL_FILL);//!这种方式有一点缺陷--会改变所有三角形图元的渲染模式，不管三角形在此之前已被渲染还是在此之后渲染
+//        glDrawArrays(GL_TRIANGLES, 0, count);
+//    }
+//    else if (PointCloud == mode)
+//    {
+////        glPolygonMode(GL_FRONT_FACE, GL_POINT);
+//        glDrawArrays(GL_POINTS, 0, count);
+//    }
+//    else if(Lines == mode)
+//    {
+////        glPolygonMode(GL_FRONT, GL_LINES);
+//        glDrawArrays(GL_LINES, 0, count);
+//    }
+//    else
+//    {}
+//    m_vao.release();
+//    m_vbo.release();
+//    m_program->release();
+//    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void GLWidget::drawCoord()

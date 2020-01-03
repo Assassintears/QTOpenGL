@@ -22,6 +22,8 @@ in vec3 pos_in_cam;
 in vec3 normal_in_cam;
 in vec4 Color;
 
+// uniform sampler2D shadowMap;
+
 void main() 
 {
     

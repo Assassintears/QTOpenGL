@@ -91,26 +91,34 @@ private:
                       QVector<QVector3D>& out);
 
     void drawCoal();                    //! 渲染煤场
+    void drawShadow();                  //! 渲染阴影
     void drawCoord();                   //! 渲染坐标轴
     void drawText(QPainter& pt);        //! 渲染文本
 
-    RenderMode mode;                    //!渲染模式
+    RenderMode mode;                    //! 渲染模式
 
-    unsigned int uboExampleBlock;       //!uniform缓冲块句柄
-    unsigned int uboBindPoint;          //!ubo绑定点
+    unsigned int uboExampleBlock;       //! uniform缓冲块句柄
+    unsigned int uboBindPoint;          //! ubo绑定点
 
     //!煤场缓冲区句柄
-    QOpenGLShaderProgram *m_program;    //!模型着色器
-    QOpenGLVertexArrayObject m_vao;     //!VAO用于解释顶点属性，告诉着色器从哪个缓冲区（顶点属性）中取相应的数据
-    QOpenGLBuffer m_vbo;                //!array buffer，VBO用于存储顶点属性
+    QOpenGLShaderProgram *m_program;    //! 模型着色器
+    QOpenGLVertexArrayObject m_vao;     //! VAO用于解释顶点属性，告诉着色器从哪个缓冲区（顶点属性）中取相应的数据
+    QOpenGLBuffer m_vbo;                //! array buffer，VBO用于存储顶点属性
     QOpenGLBuffer m_colorvbo;           //! 颜色缓冲区
     QOpenGLBuffer m_normal;             //! 法向量缓冲区
     int count;//!煤场图元计数
 
-    //! 材质
-    Material material;
-    //! 光源
-    Light light;
+//    //! 暂时不考虑阴影，阴影渲染思路需要使用纹理贴图，
+//    //! 动态的纹理贴图很难处理
+//    //! 与阴影相关的一些缓冲
+//    QOpenGLShaderProgram* shadow_prog;  //! 阴影深度着色器
+//    GLuint fbo;                         //! 帧缓冲
+//    GLuint depth_texture;               //! 深度纹理
+//    const static int SHADOW_WIDTH = 1024;
+//    const static int SHADOW_HEIGHT = 1024;
+
+    Material material;                  //! 材质
+    Light light;                        //! 光源
 
     //!坐标轴缓冲区句柄
     int indexSize;                              //!坐标系图元计数
@@ -120,7 +128,7 @@ private:
     QHash<QString, QList<QVector3D> > labels;   //!存储坐标轴刻度及其世界坐标位置,键为标签
 
     //!各种变换矩阵
-    float x0, x1, y0, y1, z0, z1;   //!取值范围
+    float x0, x1, y0, y1, z0, z1;   //! 取值范围
     QMatrix4x4 m_proj;              //! 投影矩阵
     QMatrix4x4 m_camera;            //! 相机矩阵
     QMatrix4x4 m_model;             //! 模型矩阵

@@ -4,9 +4,7 @@
         <file>shaders/Dvs.shader</file>
         <file>shaders/coordfs.frag</file>
         <file>shaders/coordvs.vert</file>
-        <file>shaders/textfs.frag</file>
-        <file>shaders/textvs.vert</file>
-        <file>shaders/backfs.frag</file>
-        <file>shaders/backvs.vert</file>
+        <file>shaders/depth.frag</file>
+        <file>shaders/depth.vert</file>
     </qresource>
 </RCC>

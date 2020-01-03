@@ -28,6 +28,11 @@ MainWindow::MainWindow(QMainWindow *parent)
     cdata = new CData;
     cdata->moveToThread(&calcPointAttr);
     calcPointAttr.start();
+
+//    m_isCoalSelected.insert(1, false);//! 一号煤场1号天车
+//    m_isCoalSelected.insert(1, false);//! 一号煤场2号天车
+//    m_isCoalSelected.insert(2, false);//! 二号煤场1号天车
+//    m_isCoalSelected.insert(2, false);//! 二号煤场1号天车
    createButtons();
    layout();
    createStatusBar();
@@ -82,7 +87,6 @@ void MainWindow::createButtons()
 
     control = new QGroupBox(tr("场地选择"), this);
     start = new QPushButton(tr("Start"));
-//    start->setFixedSize(QSize(80, 40));
     coal = new QTreeWidget;
     coal->clear();
     coal->setHeaderHidden(true);
@@ -139,6 +143,8 @@ void MainWindow::createButtons()
     stepy = new QLabel(tr("stepY/cm"));
     edity0 = new QLineEdit;
     editstepy = new QLineEdit;
+    edity0->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    editstepy->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     edity0->setValidator(new QRegExpValidator(QRegExp("[0-9\\.]+$")));
     editstepy->setValidator(new QRegExpValidator(QRegExp("[0-9\\.]+$")));
     QVBoxLayout* left_edit = new QVBoxLayout;
@@ -197,9 +203,10 @@ void MainWindow::layout()
     grid->addWidget(bcolor, 0, 9);
     grid->addWidget(new QLabel(tr("颜色"), this), 1, 9);
 
-    QHBoxLayout* region_h = new QHBoxLayout;
+    control->setFixedSize(QSize(180, 100));
+    deit->setFixedSize(QSize(180, 100));
+
     QVBoxLayout* region_vl = new QVBoxLayout;
-    QVBoxLayout* region_vr = new QVBoxLayout;
 
     QHBoxLayout* vllu = new QHBoxLayout;
     vllu->addWidget(region_start_label);
@@ -211,12 +218,8 @@ void MainWindow::layout()
     vlld->addWidget(region_volum);
     region_vl->addLayout(vllu);
     region_vl->addLayout(vlld);
-    region_vr->addStretch();
-    region_vr->addWidget(region_query);
-    region_vr->addStretch();
-    region_h->addLayout(region_vl);
-    region_h->addLayout(region_vr);
-    region->setLayout(region_h);
+    region_vl->addWidget(region_query, 0, Qt::AlignRight);
+    region->setLayout(region_vl);
 
     QHBoxLayout* middle = new QHBoxLayout;
     left->addLayout(grid);
@@ -225,11 +228,12 @@ void MainWindow::layout()
     left->addLayout(middle);
     left->addWidget(openglwidget);
 
-    right->addWidget(start);
+    right->addWidget(start, 0,  Qt::AlignLeft);
     start->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-    right->addWidget(control);
+
+    right->addWidget(control, 0, Qt::AlignRight);
     right->addStretch();
-    right->addWidget(deit);
+    right->addWidget(deit, 0, Qt::AlignRight);
     right->addStretch();
     right->addWidget(region);
     right->addWidget(section);
@@ -262,6 +266,8 @@ void MainWindow::SignalSlots()
     connect(database, &DataBase::State, this, &MainWindow::setStartText);
     connect(bright_rotate, &QPushButton::clicked, openglwidget, &GLWidget::rotateRight);
     connect(bleft_rotate, &QPushButton::clicked, openglwidget, &GLWidget::rotateLeft);
+
+    connect(coal, &QTreeWidget::itemClicked, this, &MainWindow::on_click_coal);
 
     //! 计算体积信号
     connect(region_query, &QPushButton::clicked, this, &MainWindow::on_query);
@@ -334,6 +340,8 @@ void MainWindow::initStepY()
 void MainWindow::on_Start_click()
 {
     QString tx = start->text();
+    //! 判断哪些被选中
+
     QString start = "UPDATE IPC SET State = 1 WHERE SiteID = 1";
     QString stop = "UPDATE IPC SET State = 0 WHERE SiteID = 1";
     QString select = "SELECT State FROM IPC WHERE SiteID = 1"; //! 开始测量之前，先查看当前煤场是否已经在测量
@@ -454,4 +462,58 @@ void MainWindow::on_query()
 void MainWindow::VolumRes(float volum)
 {
     region_volum->setText(QString::number(volum));
+}
+
+void MainWindow::on_click_coal(QTreeWidgetItem *item, int column)
+{
+    if (item->parent())//! 当前选中子控件
+    {
+        QTreeWidgetItem* parent = item->parent();
+        const int childCount = parent->childCount();
+        int selectCount = 0;//! 被选中的数量
+        for (int i = 0; i < childCount; ++i)
+        {
+            if (Qt::Checked == parent->child(i)->checkState(column))
+            {
+                selectCount++;
+            }
+        }
+
+        Qt::CheckState currentState = item->checkState(column);
+        if (Qt::Unchecked == currentState) //! 孩子被取消
+        {
+            item->setCheckState(column, Qt::Unchecked);
+            if (0 == selectCount)//! 所有都被取消了
+            {
+                parent->setCheckState(column, Qt::Unchecked);
+            }
+        }
+        else
+        {
+            item->setCheckState(column, Qt::Checked);
+            if (childCount == selectCount)//! 所有都被选中了
+            {
+                parent->setCheckState(column, Qt::Checked);
+            }
+        }
+    }
+    else
+    {
+        if (Qt::Unchecked == item->checkState(column))
+        {
+            item->setCheckState(column, Qt::Unchecked);
+            for (int i = 0; i < item->childCount(); ++i)
+            {
+                item->child(i)->setCheckState(column, Qt::Unchecked);
+            }
+        }
+        else
+        {
+            item->setCheckState(column, Qt::Checked);
+            for (int i = 0; i < item->childCount(); ++i)
+            {
+                item->child(i)->setCheckState(column, Qt::Checked);
+            }
+        }
+    }
 }
