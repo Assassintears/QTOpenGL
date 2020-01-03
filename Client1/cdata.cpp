@@ -112,34 +112,37 @@ bool CData::reshape(const QVector<QVector<QVector3D>>& data,
 void CData::calcVolum(int start, int end, QVector<QVector<int>> db)
 {
     float sum = 0;
-    if (end > (db.end() - 1)->data()[0])
+    if (!db.empty())
     {
-        end = (db.end() - 1)->data()[0];
-    }
-
-    if (start < db[0][0])
-    {
-        start = db[0][0];
-    }
-
-    int dbSize = db.size();
-    int i;
-    int k = 0;
-    for (i = 0; i < dbSize - 1; ++i)
-    {
-        if (start <= db[i][0])
+        if (end > (db.end() - 1)->data()[0])
         {
-            QVector<int> current = db[i];
-            QVector<int> next;
-            //! 下一行是否可取
-            if (db[i + 1][0] <= end)
+            end = (db.end() - 1)->data()[0];
+        }
+
+        if (start < db[0][0])
+        {
+            start = db[0][0];
+        }
+
+        int dbSize = db.size();
+        int i;
+        int k = 0;
+        for (i = 0; i < dbSize - 1; ++i)
+        {
+            if (start <= db[i][0])
             {
-                next = db[i + 1];
-                k++;
-                sum += _calVolum(current, next);
-            }
-            else {
-                break;
+                QVector<int> current = db[i];
+                QVector<int> next;
+                //! 下一行是否可取
+                if (db[i + 1][0] <= end)
+                {
+                    next = db[i + 1];
+                    k++;
+                    sum += _calVolum(current, next);
+                }
+                else {
+                    break;
+                }
             }
         }
     }

@@ -86,7 +86,7 @@ void DataBase::selectRealDataFromDB(const QString& sql)
     return;
 }
 
-void DataBase::selectAll(int start, int end)
+void DataBase::selectAll(QString s, int start, int end)
 {
     if (m_isBreak)
     {
@@ -102,14 +102,13 @@ void DataBase::selectAll(int start, int end)
             return;
         }
     }
-    QString sql = "select * from 一号煤场";
+    QString sql = "select * from " + s;
     QSqlQuery query(m_dataBase);
     query.exec(sql);
     QVector<QVector<int>> data;
     if (query.isActive())
     {
         //!取结果集
-
         while (query.next())
         {
             QVector<int> tmp;
@@ -136,17 +135,18 @@ void DataBase::selectAll(int start, int end)
         }
 
         //! 防止数据库突然断开，最后一次数据来不及取导致最后一行数据列数与之前的行的列数不一致
-        if (!data.isEmpty())
-        {
+//        if (!data.isEmpty())
+//        {
             if (data.size() > 1)
             {
                 if (data[0].size() != data[data.size() - 1].size())
                 {
                     data.erase(data.end() - 1, data.end());
                 }
-                emit calcVolum(start, end, data);
+
             }
-        }
+            emit calcVolum(start, end, data);
+//        }
         query.clear();
     }
     m_dataBase.close();

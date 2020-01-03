@@ -37,7 +37,7 @@ public slots:
     void StartStopScanner(const QString& sql, const QString& select);   //! 开始结束扫描
     void reconnectDB();                                                 //! 数据库断开重连
     void initDB();
-    void selectAll(int start, int end);
+    void selectAll(QString s, int start, int end);
 private:
     QSqlDatabase m_dataBase;
     QMutex m_mutex;

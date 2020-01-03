@@ -87,36 +87,11 @@ void MainWindow::createButtons()
 
     control = new QGroupBox(tr("场地选择"), this);
     start = new QPushButton(tr("Start"));
-    coal = new QTreeWidget;
-    coal->clear();
-    coal->setHeaderHidden(true);
-    coal->setColumnCount(1);
-
-    QTreeWidgetItem* item1 = new QTreeWidgetItem;//!第一个节点
-    item1->setText(0, tr("一号煤场"));
-    QTreeWidgetItem* grandon11 = new QTreeWidgetItem;
-    QTreeWidgetItem* grandon12 = new QTreeWidgetItem;
-    grandon11->setText(0, tr("一号天车"));
-    grandon12->setText(0, tr("二号天车"));
-    item1->addChild(grandon11);
-    item1->addChild(grandon12);
-
-    QTreeWidgetItem* item2 = new QTreeWidgetItem;//!第一个节点
-    item2->setText(0, tr("二号煤场"));
-    QTreeWidgetItem* grandon21 = new QTreeWidgetItem;
-    QTreeWidgetItem* grandon22 = new QTreeWidgetItem;
-    grandon21->setText(0, tr("一号天车"));
-    grandon22->setText(0, tr("二号天车"));
-    item2->addChild(grandon21);
-    item2->addChild(grandon22);
-    coal->addTopLevelItem(item1);
-    coal->addTopLevelItem(item2);
-    item1->setCheckState(0, Qt::Unchecked);
-    grandon11->setCheckState(0, Qt::Unchecked);
-    grandon12->setCheckState(0, Qt::Unchecked);
-    item2->setCheckState(0, Qt::Unchecked);
-    grandon21->setCheckState(0, Qt::Unchecked);
-    grandon22->setCheckState(0, Qt::Unchecked);
+    coal_list = new QComboBox;
+    QStringList sl = {"一号煤场", "二号煤场"};
+    coal_list->addItems(sl);
+    selected_coal.push_back(false);
+    selected_coal.push_back(false);
 
     region = new QGroupBox(tr("区域"));
     region_query = new QPushButton(tr("查询"));
@@ -128,15 +103,6 @@ void MainWindow::createButtons()
     region_end->setValidator(new QRegExpValidator(QRegExp("[0-9\\.]+$")));
     volum_label = new QLabel(tr("体积/m^3"));
     region_volum = new QLabel(tr("0"));
-
-
-    QVBoxLayout* right = new QVBoxLayout;
-    QHBoxLayout* contral_main = new QHBoxLayout;
-
-
-    right->addWidget(coal);
-    contral_main->addLayout(right);
-    control->setLayout(contral_main);
 
     deit = new QGroupBox(tr("edit"));
     y0 = new QLabel(tr("Y0/cm"));
@@ -203,8 +169,10 @@ void MainWindow::layout()
     grid->addWidget(bcolor, 0, 9);
     grid->addWidget(new QLabel(tr("颜色"), this), 1, 9);
 
-    control->setFixedSize(QSize(180, 100));
-    deit->setFixedSize(QSize(180, 100));
+    QHBoxLayout* contral_main = new QHBoxLayout;
+    contral_main->addWidget(coal_list);
+    contral_main->addWidget(start);
+    control->setLayout(contral_main);
 
     QVBoxLayout* region_vl = new QVBoxLayout;
 
@@ -228,12 +196,9 @@ void MainWindow::layout()
     left->addLayout(middle);
     left->addWidget(openglwidget);
 
-    right->addWidget(start, 0,  Qt::AlignLeft);
-    start->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-
-    right->addWidget(control, 0, Qt::AlignRight);
+    right->addWidget(control);
     right->addStretch();
-    right->addWidget(deit, 0, Qt::AlignRight);
+    right->addWidget(deit);
     right->addStretch();
     right->addWidget(region);
     right->addWidget(section);
@@ -267,14 +232,11 @@ void MainWindow::SignalSlots()
     connect(bright_rotate, &QPushButton::clicked, openglwidget, &GLWidget::rotateRight);
     connect(bleft_rotate, &QPushButton::clicked, openglwidget, &GLWidget::rotateLeft);
 
-    connect(coal, &QTreeWidget::itemClicked, this, &MainWindow::on_click_coal);
-
     //! 计算体积信号
     connect(region_query, &QPushButton::clicked, this, &MainWindow::on_query);
     connect(this, &MainWindow::calVolum, database, &DataBase::selectAll);
     connect(database, &DataBase::calcVolum, cdata, &CData::calcVolum);
     connect(cdata, &CData::Volum, this, &MainWindow::VolumRes);
-//    connect(database, &DataBase::Volum, this, &MainWindow::VolumRes);
 }
 
 void MainWindow::pollingDataBase()
@@ -282,7 +244,19 @@ void MainWindow::pollingDataBase()
     if (START == state)
     {
         //! 这里判断读取哪个表格数据
-        QString sql = "select * from 一号煤场";
+         QString sql;
+         if (selected_coal[0])
+         {
+             sql = "select * from 一号煤场";
+         }
+         else if (selected_coal[1])
+         {
+             sql = "select * from 二号煤场";
+         }
+         else {
+             return;
+         }
+
         emit pullonce(sql);
     }
 }
@@ -340,20 +314,50 @@ void MainWindow::initStepY()
 void MainWindow::on_Start_click()
 {
     QString tx = start->text();
+    QString site = coal_list->currentText();
+    QString start;
+    QString stop;
+    QString select; //! 开始测量之前，先查看当前煤场是否已经在测量
     //! 判断哪些被选中
+    if ("一号煤场" == site)
+    {
+        start = "UPDATE IPC SET State = 1 WHERE SiteID = 1";
+        stop = "UPDATE IPC SET State = 0 WHERE SiteID = 1";
+        select = "SELECT State FROM IPC WHERE SiteID = 1";
+    }
+    else if ("二号煤场" == site)
+    {
+        start = "UPDATE IPC SET State = 1 WHERE SiteID = 2";
+        stop = "UPDATE IPC SET State = 0 WHERE SiteID = 2";
+        select = "SELECT State FROM IPC WHERE SiteID = 2";
+    }
 
-    QString start = "UPDATE IPC SET State = 1 WHERE SiteID = 1";
-    QString stop = "UPDATE IPC SET State = 0 WHERE SiteID = 1";
-    QString select = "SELECT State FROM IPC WHERE SiteID = 1"; //! 开始测量之前，先查看当前煤场是否已经在测量
     if ("Start" == tx)
     {
         emit StartStopScanner(start, select);
+        //! 判断哪些被选中
+        if ("一号煤场" == site)
+        {
+            selected_coal[0] = true;
+        }
+        else if ("二号煤场" == site)
+        {
+            selected_coal[1] = true;
+        }
 
     }
     else if ("End" == tx)
     {
         emit StartStopScanner(stop);
         database->m_stop = true;
+        if ("一号煤场" == site)
+        {
+            selected_coal[0] = false;
+        }
+        else if ("二号煤场" == site)
+        {
+            selected_coal[1] = false;
+        }
     }
     else {
         ;
@@ -407,6 +411,8 @@ void MainWindow::setStartText(int state)
             database->m_stop = true;
         }
         currentstatus->setText(tr("指令无效"));
+        selected_coal[0] = false;
+        selected_coal[1] = false;
     }
     else if (4 == state)        //! 重连成功
     {
@@ -431,6 +437,7 @@ void MainWindow::on_query()
 {
     QString s = region_start->text();
     QString e = region_end->text();
+    QString site = coal_list->currentText();
     if (s.isEmpty())
     {
         qDebug() << "必须输入起始值\n";
@@ -448,15 +455,12 @@ void MainWindow::on_query()
         qDebug() << "起始值必须小于结束值\n";
         return;
     }
-    if (START == this->state)
+    if (END == this->state)
     {
-        qDebug() << "当前正在扫描，请等待扫描结束后查询\n";
-        return;
+        emit calVolum(site, start, end);
     }
 
-    emit calVolum(start, end);
     return;
-
 }
 
 void MainWindow::VolumRes(float volum)

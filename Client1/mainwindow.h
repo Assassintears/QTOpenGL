@@ -42,20 +42,21 @@ public:
     ~MainWindow();
 
 private:
-    QPushButton* bhistory;      //!历史
-    QPushButton* bfile;         //!文件
-    QPushButton* bleft_rotate;  //!左旋
-    QPushButton* bright_rotate; //!右旋
-    QPushButton* boverlook;     //!俯视
-    QPushButton* bsidelook;     //!侧视
-    QPushButton* bspride;       //!网格图
-    QPushButton* bpatch;        //!填充
-    QPushButton* bcloud;        //!点云
-    QPushButton* bcolor;        //!颜色
+    QPushButton* bhistory;      //! 历史
+    QPushButton* bfile;         //! 文件
+    QPushButton* bleft_rotate;  //! 左旋
+    QPushButton* bright_rotate; //! 右旋
+    QPushButton* boverlook;     //! 俯视
+    QPushButton* bsidelook;     //! 侧视
+    QPushButton* bspride;       //! 网格图
+    QPushButton* bpatch;        //! 填充
+    QPushButton* bcloud;        //! 点云
+    QPushButton* bcolor;        //! 颜色
 
-    QGroupBox* control;         //!控制
-    QPushButton* start;         //!开始扫描
-    QTreeWidget* coal;          //!煤堆树
+    QGroupBox* control;         //! 控制
+    QPushButton* start;         //! 开始扫描
+    QComboBox* coal_list;       //! 煤场列表
+//    QTreeWidget* coal;          //!煤堆树
 
     QGroupBox* deit;
     QLabel* y0;
@@ -73,6 +74,7 @@ private:
     QLabel* region_end_label;
     QLabel* volum_label;
     QPushButton* region_query;  //! 查询
+    QVector<bool> selected_coal;//! 被选中的煤场
 
 //    QMultiHash<int, bool> m_isCoalSelected; //! 煤场是否被选中
 
@@ -94,7 +96,7 @@ signals:
     void pullonce(QString sql); //! 抓取一次数据库数据
     void StartStopScanner(QString sql, QString select = "");
     void reconnectDB();         //! 重连数据库
-    void calVolum(int start, int end);
+    void calVolum(QString coalSite,int start, int end);//! coalSite：3D数据表名， start：查询起始值，end：查询结束值
 
 private:
     void createButtons();       //! 创建按钮
