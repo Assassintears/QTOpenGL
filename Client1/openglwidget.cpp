@@ -113,8 +113,8 @@ void GLWidget::updateData(QVector<QVector3D> local, QVector<QVector3D> normal, Q
 {
     if (local.empty())
     {
-        qDebug() << "OpenGL未接收到数据\n";
-        return;
+//        qDebug() << "OpenGL未接收到数据\n";
+//        return;
     }
     m_vao.bind();
     m_vbo.bind();

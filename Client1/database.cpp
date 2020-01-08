@@ -77,9 +77,9 @@ void DataBase::selectRealDataFromDB(const QString& sql)
                 {
                     data.erase(data.end() - 1, data.end());
                 }
-                emit dataBase(data);
             }
         }
+        emit dataBase(data);
         query.clear();
     }
     m_dataBase.close();

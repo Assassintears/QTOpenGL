@@ -15,16 +15,19 @@ CData::~CData()
 
 void CData::calcPoint(QVector<QVector<float>> db)
 {
+    QVector<QVector3D> point;//! 顶点数据
+    QVector<QVector3D> normal;
+    QVector<QVector3D> color;
     if (db.empty())
     {
+        emit hasData(point, normal, QVector<QVector3D>());
         qDebug() << "No data" << "\n";
         return;
     }
    int rows = db.size();
-   int cols = db[0].size();
-   int pointNum = cols - 2;
+//   int cols = db[0].size();
+//   int pointNum = cols - 2;
    QVector<QVector<QVector3D>> data;
-   QVector<int> hang;
    for (int i = 0; i < rows; ++i)
    {
        float x = db[i][0] / 1000.0f;
@@ -35,25 +38,20 @@ void CData::calcPoint(QVector<QVector<float>> db)
            float z = db[i][j] / 1000.0f;        //! mm转化为m
            tmp.push_back(QVector3D(x, y, z));
        }
-       if (2 != db[i].size() - pointNum)
-       {
-           qDebug() << "--" << i << "  size = " << db[i].size() << "\n";
-       }
-//       else {
-           data.push_back(tmp);
+//       if (2 != db[i].size() - pointNum)
+//       {
+//           qDebug() << "--" << i << "  size = " << db[i].size() << "\n";
 //       }
-
+           data.push_back(tmp);
    }
    //! 重组数据
    QVector<unsigned int> ii;
-   if (data.empty())
-   {
-       qDebug() << "No data" << "\n";
-       return;
-   }
-   QVector<QVector3D> point;//! 顶点数据
-   QVector<QVector3D> normal;
-   QVector<QVector3D> color;
+//   if (data.empty())
+//   {
+//       qDebug() << "No data" << "\n";
+//       return;
+//   }
+
    reshape(data, point, normal, color);
    emit hasData(point, normal, QVector<QVector3D>());
 }

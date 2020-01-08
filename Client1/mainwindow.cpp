@@ -29,10 +29,6 @@ MainWindow::MainWindow(QMainWindow *parent)
     cdata->moveToThread(&calcPointAttr);
     calcPointAttr.start();
 
-//    m_isCoalSelected.insert(1, false);//! 一号煤场1号天车
-//    m_isCoalSelected.insert(1, false);//! 一号煤场2号天车
-//    m_isCoalSelected.insert(2, false);//! 二号煤场1号天车
-//    m_isCoalSelected.insert(2, false);//! 二号煤场1号天车
    createButtons();
    layout();
    createStatusBar();
@@ -104,7 +100,7 @@ void MainWindow::createButtons()
     volum_label = new QLabel(tr("体积/m^3"));
     region_volum = new QLabel(tr("0"));
 
-    deit = new QGroupBox(tr("edit"));
+    deit = new QGroupBox(tr("编辑"));
     y0 = new QLabel(tr("Y0/cm"));
     stepy = new QLabel(tr("stepY/cm"));
     edity0 = new QLineEdit;
@@ -318,22 +314,22 @@ void MainWindow::on_Start_click()
     QString start;
     QString stop;
     QString select; //! 开始测量之前，先查看当前煤场是否已经在测量
-    //! 判断哪些被选中
-    if ("一号煤场" == site)
-    {
-        start = "UPDATE IPC SET State = 1 WHERE SiteID = 1";
-        stop = "UPDATE IPC SET State = 0 WHERE SiteID = 1";
-        select = "SELECT State FROM IPC WHERE SiteID = 1";
-    }
-    else if ("二号煤场" == site)
-    {
-        start = "UPDATE IPC SET State = 1 WHERE SiteID = 2";
-        stop = "UPDATE IPC SET State = 0 WHERE SiteID = 2";
-        select = "SELECT State FROM IPC WHERE SiteID = 2";
-    }
 
     if ("Start" == tx)
     {
+        //! 判断哪些被选中
+        if ("一号煤场" == site)
+        {
+            start = "UPDATE IPC SET State = 1 WHERE SiteID = 1";
+            stop = "UPDATE IPC SET State = 0 WHERE SiteID = 1";
+            select = "SELECT State FROM IPC WHERE SiteID = 1";
+        }
+        else if ("二号煤场" == site)
+        {
+            start = "UPDATE IPC SET State = 1 WHERE SiteID = 2";
+            stop = "UPDATE IPC SET State = 0 WHERE SiteID = 2";
+            select = "SELECT State FROM IPC WHERE SiteID = 2";
+        }
         emit StartStopScanner(start, select);
         //! 判断哪些被选中
         if ("一号煤场" == site)
@@ -348,16 +344,24 @@ void MainWindow::on_Start_click()
     }
     else if ("End" == tx)
     {
-        emit StartStopScanner(stop);
-        database->m_stop = true;
-        if ("一号煤场" == site)
+        //! 此时不从煤场列表里判断哪个被选中
+        //! 防止在扫描期间用户再次切换煤场
+        if (selected_coal[0])
         {
+            start = "UPDATE IPC SET State = 1 WHERE SiteID = 1";
+            stop = "UPDATE IPC SET State = 0 WHERE SiteID = 1";
+            select = "SELECT State FROM IPC WHERE SiteID = 1";
             selected_coal[0] = false;
         }
-        else if ("二号煤场" == site)
+        else if (selected_coal[1])
         {
+            start = "UPDATE IPC SET State = 1 WHERE SiteID = 2";
+            stop = "UPDATE IPC SET State = 0 WHERE SiteID = 2";
+            select = "SELECT State FROM IPC WHERE SiteID = 2";
             selected_coal[1] = false;
         }
+        emit StartStopScanner(stop);
+        database->m_stop = true;
     }
     else {
         ;

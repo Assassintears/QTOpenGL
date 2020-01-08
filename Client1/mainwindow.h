@@ -76,8 +76,6 @@ private:
     QPushButton* region_query;  //! 查询
     QVector<bool> selected_coal;//! 被选中的煤场
 
-//    QMultiHash<int, bool> m_isCoalSelected; //! 煤场是否被选中
-
     //!自定义控件
     Profile* profile;           //!qt二维绘图控件
 
@@ -102,9 +100,7 @@ private:
     void createButtons();       //! 创建按钮
     void layout();
     void createStatusBar();     //! 创建状态栏
-
-private:
-     void  SignalSlots();
+    void SignalSlots();        //! 信号槽
 
 public slots:
     void on_Start_click();
